@@ -3,9 +3,12 @@
     <div 
       ref="canvasContainer" 
       @click="handleTap"
-      class="w-full h-64 bg-black rounded-lg cursor-pointer"
+      @touchstart="handleTap"
+      class="w-full h-64 bg-black rounded-lg cursor-pointer select-none"
     >
-      <!-- p5.js canvas will be mounted here -->
+      <div class="absolute inset-0 flex items-center justify-center text-white/50 pointer-events-none">
+        タップしてエフェクトを作成
+      </div>
     </div>
   </div>
 </template>
@@ -28,19 +31,42 @@ class Effect {
     this.hue = p.random(360)
     this.alpha = 1
     this.speed = p.random(2, 5)
+    this.particles = Array.from({ length: 8 }, () => ({
+      angle: p.random(p.TWO_PI),
+      speed: p.random(1, 3),
+      size: p.random(3, 8),
+      distance: 0
+    }))
   }
 
   update() {
     this.size += this.speed
     this.alpha = this.p.map(this.size, 0, this.maxSize, 1, 0)
+    
+    this.particles.forEach(particle => {
+      particle.distance += particle.speed
+    })
+    
     return this.size < this.maxSize
   }
 
   draw() {
-    this.p.noFill()
-    this.p.stroke(this.hue, 80, 100, this.alpha)
-    this.p.strokeWeight(2)
-    this.p.circle(this.x, this.y, this.size)
+    const p = this.p
+    
+    // Draw main ripple
+    p.noFill()
+    p.stroke(this.hue, 80, 100, this.alpha)
+    p.strokeWeight(2)
+    p.circle(this.x, this.y, this.size)
+    
+    // Draw particles
+    p.noStroke()
+    this.particles.forEach(particle => {
+      const x = this.x + Math.cos(particle.angle) * particle.distance
+      const y = this.y + Math.sin(particle.angle) * particle.distance
+      p.fill(this.hue, 80, 100, this.alpha)
+      p.circle(x, y, particle.size * this.alpha)
+    })
   }
 }
 
