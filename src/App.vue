@@ -1,5 +1,6 @@
 <script setup>
 import AudioVisualizer from './components/AudioVisualizer.vue'
+import P5Visualizer from './components/P5Visualizer.vue'
 </script>
 
 <template>
