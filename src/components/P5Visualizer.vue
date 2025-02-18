@@ -30,7 +30,11 @@ import p5 from 'p5'
 const props = defineProps({
   audioAnalyser: {
     type: Object,
-    required: true
+    required: true,
+    validator: (value) => {
+      return value && typeof value.getByteFrequencyData === 'function' && 
+             typeof value.frequencyBinCount === 'number'
+    }
   }
 })
 
@@ -75,43 +79,87 @@ class Particle {
 }
 
 const sketch = (p) => {
-  p.setup = () => {
-    const canvas = p.createCanvas(
-      canvasContainer.value.clientWidth,
-      canvasContainer.value.clientHeight
-    )
-    canvas.parent(canvasContainer.value)
-    p.colorMode(p.HSB, 360, 100, 100, 1)
-    p.background(0)
+  let canvas = null
 
-    particles = Array.from({ length: particleCount }, () => new Particle(p))
+  const initializeCanvas = () => {
+    if (!canvasContainer.value) {
+      console.error('Canvas container not available during p5 setup')
+      return false
+    }
+
+    try {
+      const width = canvasContainer.value.clientWidth
+      const height = canvasContainer.value.clientHeight
+
+      console.log('Creating canvas with dimensions:', { width, height })
+      canvas = p.createCanvas(width, height)
+      canvas.parent(canvasContainer.value)
+      
+      return true
+    } catch (error) {
+      console.error('Failed to create canvas:', error)
+      return false
+    }
+  }
+
+  p.setup = () => {
+    if (!initializeCanvas()) return
+
+    try {
+      p.colorMode(p.HSB, 360, 100, 100, 1)
+      p.background(0)
+
+      particles = Array.from({ length: particleCount }, () => new Particle(p))
+      console.log('P5 sketch setup completed successfully')
+    } catch (error) {
+      console.error('Failed to setup p5 sketch:', error)
+    }
   }
 
   p.draw = () => {
+    if (!props.audioAnalyser) {
+      console.error('Audio analyser not available during draw')
+      return
+    }
+
     p.background(0, 0.1)
     
-    // Get audio data
-    const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
-    props.audioAnalyser.getByteFrequencyData(dataArray)
+    try {
+      // Get audio data
+      const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(dataArray)
+      
+      // Calculate average intensity
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+      const intensity = p.map(average, 0, 255, 1, 3)
     
-    // Calculate average intensity
-    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
-    const intensity = p.map(average, 0, 255, 1, 3)
-    
-    // Update and draw particles
-    particles.forEach(particle => {
-      particle.update(intensity)
-      particle.draw()
-    })
-    
-    hueOffset = (hueOffset + 0.5) % 360
+      // Update and draw particles
+      particles.forEach(particle => {
+        particle.update(intensity)
+        particle.draw()
+      })
+      
+      hueOffset = (hueOffset + 0.5) % 360
+    } catch (error) {
+      console.error('Error in p5 draw loop:', error)
+    }
   }
 
   p.windowResized = () => {
-    p.resizeCanvas(
-      canvasContainer.value.clientWidth,
-      canvasContainer.value.clientHeight
-    )
+    if (!canvasContainer.value) {
+      console.error('Canvas container not available during resize')
+      return
+    }
+
+    try {
+      const width = canvasContainer.value.clientWidth
+      const height = canvasContainer.value.clientHeight
+      
+      console.log('Resizing canvas to:', { width, height })
+      p.resizeCanvas(width, height)
+    } catch (error) {
+      console.error('Failed to resize canvas:', error)
+    }
   }
 }
 
@@ -129,7 +177,22 @@ const toggleFullscreen = () => {
 }
 
 onMounted(() => {
-  p5Instance = new p5(sketch)
+  if (!canvasContainer.value) {
+    console.error('Canvas container not found during mount')
+    return
+  }
+  
+  if (!props.audioAnalyser) {
+    console.error('Audio analyser not provided during mount')
+    return
+  }
+
+  try {
+    p5Instance = new p5(sketch)
+    console.log('P5 instance created successfully')
+  } catch (error) {
+    console.error('Failed to create P5 instance:', error)
+  }
 })
 
 onUnmounted(() => {

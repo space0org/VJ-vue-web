@@ -37,7 +37,10 @@
         ></canvas>
       </div>
     </div>
-    <P5Visualizer v-if="isRecording && !error" :audioAnalyser="getAnalyser()" />
+    <P5Visualizer 
+      v-if="isRecording && !error && analyser" 
+      :audioAnalyser="getAnalyser()" 
+    />
   </div>
 </template>
 
@@ -54,12 +57,25 @@ let dataArray = null
 let source = null
 let animationId = null
 
-const getAnalyser = () => analyser
+const getAnalyser = () => {
+  if (!analyser) {
+    console.warn('Audio analyser not initialized')
+    return null
+  }
+  console.log('Providing audio analyser:', {
+    fftSize: analyser.fftSize,
+    frequencyBinCount: analyser.frequencyBinCount
+  })
+  return analyser
+}
 
 const startRecording = async () => {
   try {
+    console.log('Starting recording...')
     error.value = ''
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    console.log('Microphone access granted')
+    
     audioContext = new AudioContext()
     analyser = audioContext.createAnalyser()
     source = audioContext.createMediaStreamSource(stream)
@@ -68,6 +84,12 @@ const startRecording = async () => {
     analyser.fftSize = 2048
     const bufferLength = analyser.frequencyBinCount
     dataArray = new Uint8Array(bufferLength)
+    
+    console.log('Audio context initialized:', {
+      sampleRate: audioContext.sampleRate,
+      fftSize: analyser.fftSize,
+      bufferLength
+    })
     
     isRecording.value = true
     confetti()
@@ -129,10 +151,13 @@ const draw = () => {
 }
 
 onUnmounted(() => {
+  console.log('AudioVisualizer unmounting...')
   if (animationId) {
+    console.log('Canceling animation frame')
     cancelAnimationFrame(animationId)
   }
   if (audioContext) {
+    console.log('Closing audio context')
     audioContext.close()
   }
 })
