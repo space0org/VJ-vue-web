@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import AudioVisualizer from './components/AudioVisualizer.vue'
 import P5Visualizer from './components/P5Visualizer.vue'
 import TapEffects from './components/TapEffects.vue'
-import AudioCenterEffects from './components/AudioCenterEffects.vue'
+import AudioEffectScreen from './components/AudioEffectScreen.vue'
 
 const audioVisualizer = ref(null)
 </script>
@@ -19,7 +19,7 @@ const audioVisualizer = ref(null)
       </div>
       <div class="mt-8">
         <h2 class="text-2xl font-bold text-center mb-4">音声エフェクト</h2>
-        <AudioCenterEffects 
+        <AudioEffectScreen 
           v-if="audioVisualizer?.isRecording && !audioVisualizer?.error" 
           :audioAnalyser="audioVisualizer?.getAnalyser()"
         />
