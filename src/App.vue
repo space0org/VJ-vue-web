@@ -18,7 +18,14 @@ const audioVisualizer = ref(null)
         <TapEffects />
       </div>
       <div class="mt-8">
-        <h2 class="text-2xl font-bold text-center mb-4">音声エフェクト</h2>
+        <h2 class="text-2xl font-bold text-center mb-4">音声エフェクト 1</h2>
+        <AudioEffectScreen 
+          v-if="audioVisualizer?.isRecording && !audioVisualizer?.error" 
+          :audioAnalyser="audioVisualizer?.getAnalyser()"
+        />
+      </div>
+      <div class="mt-8">
+        <h2 class="text-2xl font-bold text-center mb-4">音声エフェクト 2</h2>
         <AudioEffectScreen 
           v-if="audioVisualizer?.isRecording && !audioVisualizer?.error" 
           :audioAnalyser="audioVisualizer?.getAnalyser()"

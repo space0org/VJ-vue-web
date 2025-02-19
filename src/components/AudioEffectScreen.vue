@@ -30,27 +30,53 @@ const props = defineProps({
 const canvasContainer = ref(null)
 let p5Instance = null
 
-const sketch = (p) => {
-  let effects = []
-  const AUDIO_THRESHOLD = 50
-  const MIN_TRIGGER_INTERVAL = 100
-  let lastTriggerTime = 0
-
+const sketch = function(p) {
+  let effects = [];
+  const AUDIO_THRESHOLD = 50;
+  const MIN_TRIGGER_INTERVAL = 100;
+  let lastTriggerTime = 0;
+  
   class Effect {
     constructor(x, y) {
-      this.x = x
-      this.y = y
-      this.size = 0
-      this.maxSize = p.random(100, 200)
-      this.hue = p.random(360)
-      this.alpha = 1
-      this.speed = p.random(2, 5)
+      this.x = x;
+      this.y = y;
+      this.size = 0;
+      this.maxSize = p.random(100, 200);
+      this.hue = p.random(360);
+      this.alpha = 1;
+      this.speed = p.random(2, 5);
       this.particles = Array.from({ length: 12 }, () => ({
         angle: p.random(p.TWO_PI),
         speed: p.random(1, 3),
         size: p.random(3, 8),
         distance: 0
-      }))
+      }));
+    }
+
+    update() {
+      this.size += this.speed;
+      this.alpha = p.map(this.size, 0, this.maxSize, 1, 0);
+      
+      this.particles.forEach(particle => {
+        particle.distance += particle.speed;
+      });
+      
+      return this.size < this.maxSize;
+    }
+
+    draw() {
+      p.noFill();
+      p.stroke(this.hue, 80, 100, this.alpha);
+      p.strokeWeight(2);
+      p.circle(this.x, this.y, this.size);
+      
+      p.noStroke();
+      this.particles.forEach(particle => {
+        const x = this.x + Math.cos(particle.angle) * particle.distance;
+        const y = this.y + Math.sin(particle.angle) * particle.distance;
+        p.fill(this.hue, 80, 100, this.alpha);
+        p.circle(x, y, particle.size * this.alpha);
+      });
     }
 
     update() {
@@ -80,27 +106,26 @@ const sketch = (p) => {
     }
   }
 
-  p.setup = () => {
-    if (!canvasContainer.value) {
-      console.error('Canvas container not available during p5 setup')
-      return
-    }
-
+  p.setup = function() {
     try {
+      if (!canvasContainer.value) {
+        throw new Error('Canvas container not available during p5 setup');
+      }
+
       const canvas = p.createCanvas(
         canvasContainer.value.clientWidth,
         canvasContainer.value.clientHeight
-      )
-      canvas.parent(canvasContainer.value)
-      p.colorMode(p.HSB, 360, 100, 100, 1)
-      p.background(0)
-      console.log('Audio effect screen initialized')
+      );
+      canvas.parent(canvasContainer.value);
+      p.colorMode(p.HSB, 360, 100, 100, 1);
+      p.background(0);
+      console.log('Audio effect screen initialized');
     } catch (error) {
-      console.error('Failed to setup audio effect screen:', error)
+      console.error('Failed to setup audio effect screen:', error);
     }
   }
 
-  p.draw = () => {
+  p.draw = function() {
     if (!props.audioAnalyser) return
     
     p.background(0, 0.1)
@@ -112,17 +137,20 @@ const sketch = (p) => {
       const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
       
       if (average > AUDIO_THRESHOLD && p.millis() - lastTriggerTime > MIN_TRIGGER_INTERVAL) {
-        effects.push(new Effect(p.width / 2, p.height / 2))
-        lastTriggerTime = p.millis()
+        const effect = new Effect(p.width / 2, p.height / 2);
+        effects.push(effect);
+        lastTriggerTime = p.millis();
       }
       
-      effects = effects.filter(effect => {
-        const alive = effect.update()
+      for (let i = effects.length - 1; i >= 0; i--) {
+        const effect = effects[i];
+        const alive = effect.update();
         if (alive) {
-          effect.draw()
+          effect.draw();
+        } else {
+          effects.splice(i, 1);
         }
-        return alive
-      })
+      }
     } catch (error) {
       console.error('Error in p5 draw loop:', error)
     }
@@ -138,10 +166,7 @@ const sketch = (p) => {
 }
 
 onMounted(() => {
-  setTimeout(() => {
-    if (!canvasContainer.value) return
-    p5Instance = new p5(sketch, canvasContainer.value)
-  }, 100)
+  p5Instance = new p5(sketch, canvasContainer.value)
 })
 
 onUnmounted(() => {
