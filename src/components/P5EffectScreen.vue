@@ -100,6 +100,18 @@ const sketch = (p) => {
     const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
     const intensity = p.map(average, 0, 255, 1, 3)
     
+    // Draw frequency spectrum visualization
+    const barWidth = p.width / bufferLength
+    p.noStroke()
+    
+    for (let i = 0; i < bufferLength; i++) {
+      const barHeight = p.map(dataArray[i], 0, 255, 0, p.height / 2)
+      const hue = p.map(i, 0, bufferLength, 0, 360)
+      p.fill(hue, 80, 100, 0.5)
+      p.rect(i * barWidth, p.height - barHeight, barWidth, barHeight)
+    }
+    
+    // Update and draw particles
     particles.forEach(particle => {
       particle.update(intensity)
       particle.draw(intensity)
