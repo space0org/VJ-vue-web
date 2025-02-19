@@ -158,24 +158,51 @@ const toggleRecording = async () => {
       if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop())
       }
+      if (audioContext) {
+        audioContext.close()
+      }
       isRecording.value = false
       error.value = null
       return
     }
 
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    // Create audio context and analyzer
     audioContext = new (window.AudioContext || window.webkitAudioContext)()
     analyser = audioContext.createAnalyser()
     analyser.fftSize = 2048
 
-    const source = audioContext.createMediaStreamSource(mediaStream)
-    source.connect(analyser)
+    // Create oscillator for testing
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+    
+    // Set up oscillator
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
+    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
+    
+    // Create LFO for amplitude modulation
+    const lfo = audioContext.createOscillator()
+    const lfoGain = audioContext.createGain()
+    lfo.frequency.value = 0.5
+    lfoGain.gain.value = 0.3
+    
+    // Connect nodes
+    oscillator.connect(gainNode)
+    gainNode.connect(analyser)
+    lfo.connect(lfoGain)
+    lfoGain.connect(gainNode.gain)
+    
+    // Start oscillators
+    oscillator.start()
+    lfo.start()
     
     isRecording.value = true
     error.value = null
+
+    console.log('Test audio signal initialized')
   } catch (err) {
-    console.error('Error accessing microphone:', err)
-    error.value = 'マイクへのアクセスエラー'
+    console.error('Error initializing audio:', err)
+    error.value = 'オーディオの初期化エラー'
     isRecording.value = false
   }
 }
