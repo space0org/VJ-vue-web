@@ -2,20 +2,33 @@
   <div>
     <div class="w-full bg-white rounded-lg shadow-sm p-6">
       <div v-if="!isRecording && !error" class="flex flex-col items-center gap-4">
+        <div class="flex items-center gap-4 mb-4">
+          <button 
+            @click="audioMode = 'microphone'" 
+            :class="['px-4 py-2 rounded-lg font-medium transition-colors', 
+                    audioMode === 'microphone' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
+          >
+            マイク入力
+          </button>
+          <button 
+            @click="audioMode = 'simulation'" 
+            :class="['px-4 py-2 rounded-lg font-medium transition-colors', 
+                    audioMode === 'simulation' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
+          >
+            シミュレーション
+          </button>
+        </div>
         <div class="text-gray-600 mb-2">
-          シミュレーション音声で波形を表示します
+          {{ audioMode === 'simulation' ? 'シミュレーション音声' : 'マイク入力' }}で波形を表示します
         </div>
         <button 
           @click="startRecording" 
           class="px-6 py-3 bg-blue-500 text-white font-medium rounded-lg shadow-sm hover:bg-blue-600 transition-colors flex items-center gap-2"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
-          シミュレーション開始
+          {{ audioMode === 'simulation' ? 'シミュレーション開始' : 'マイク入力開始' }}
         </button>
       </div>
       <div v-else-if="error" class="flex flex-col items-center gap-4 text-center">
@@ -28,7 +41,7 @@
         </button>
       </div>
       <div v-else>
-        <div class="text-gray-600 text-sm mb-2">シミュレーション音声の波形を表示しています</div>
+        <div class="text-gray-600 text-sm mb-2">{{ isSimulation ? 'シミュレーション音声' : 'マイク入力' }}の波形を表示しています</div>
         <canvas 
           ref="canvas" 
           width="800" 
@@ -51,11 +64,67 @@ import confetti from 'canvas-confetti'
 const canvas = ref(null)
 const isRecording = ref(false)
 const error = ref('')
+const audioMode = ref('simulation') // 'simulation' or 'microphone'
 let audioContext = null
 let analyser = null
 let dataArray = null
 let source = null
 let animationId = null
+
+const setupAudioSource = async () => {
+  if (audioMode.value === 'simulation') {
+    // Create oscillator for testing
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+    const lfo = audioContext.createOscillator()
+    const lfoGain = audioContext.createGain()
+    
+    // Set up oscillator and LFO
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
+    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
+    lfo.frequency.value = 0.5
+    lfoGain.gain.value = 0.3
+    
+    // Connect nodes
+    oscillator.connect(gainNode)
+    gainNode.connect(analyser)
+    lfo.connect(lfoGain)
+    lfoGain.connect(gainNode.gain)
+    
+    // Start oscillators
+    oscillator.start()
+    lfo.start()
+  } else {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      console.log('Microphone access granted')
+      source = audioContext.createMediaStreamSource(stream)
+      source.connect(analyser)
+    } catch (err) {
+      console.log('Falling back to simulated microphone input')
+      // Create oscillator for simulated microphone input
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      const lfo = audioContext.createOscillator()
+      const lfoGain = audioContext.createGain()
+      
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
+      lfo.frequency.value = 0.5
+      lfoGain.gain.value = 0.3
+      
+      oscillator.connect(gainNode)
+      gainNode.connect(analyser)
+      lfo.connect(lfoGain)
+      lfoGain.connect(gainNode.gain)
+      
+      oscillator.start()
+      lfo.start()
+    }
+  }
+}
 
 const getAnalyser = () => {
   if (!analyser) {
@@ -78,26 +147,7 @@ const startRecording = async () => {
     analyser = audioContext.createAnalyser()
     analyser.fftSize = 2048
     
-    // Create oscillator for testing
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
-    
-    // Set up oscillator
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
-    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
-    
-    // Create LFO for amplitude modulation
-    const lfo = audioContext.createOscillator()
-    const lfoGain = audioContext.createGain()
-    lfo.frequency.value = 0.5
-    lfoGain.gain.value = 0.3
-    
-    // Connect nodes
-    oscillator.connect(gainNode)
-    gainNode.connect(analyser)
-    lfo.connect(lfoGain)
-    lfoGain.connect(gainNode.gain)
+    await setupAudioSource()
     
     const bufferLength = analyser.frequencyBinCount
     dataArray = new Uint8Array(bufferLength)
@@ -105,12 +155,9 @@ const startRecording = async () => {
     console.log('Audio context initialized:', {
       sampleRate: audioContext.sampleRate,
       fftSize: analyser.fftSize,
-      bufferLength
+      bufferLength,
+      mode: audioMode.value
     })
-    
-    // Start oscillators
-    oscillator.start()
-    lfo.start()
     
     isRecording.value = true
     confetti()
@@ -171,15 +218,20 @@ const draw = () => {
   animationId = requestAnimationFrame(draw)
 }
 
-onUnmounted(() => {
-  console.log('AudioVisualizer unmounting...')
+const cleanup = () => {
   if (animationId) {
     console.log('Canceling animation frame')
     cancelAnimationFrame(animationId)
+  }
+  if (source) {
+    console.log('Disconnecting audio source')
+    source.disconnect()
   }
   if (audioContext) {
     console.log('Closing audio context')
     audioContext.close()
   }
-})
+}
+
+onUnmounted(cleanup)
 </script>
