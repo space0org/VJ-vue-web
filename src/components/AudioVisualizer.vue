@@ -4,22 +4,22 @@
       <div v-if="!isRecording && !error" class="flex flex-col items-center gap-4">
         <div class="flex items-center gap-4 mb-4">
           <button 
-            @click="audioMode = 'microphone'" 
+            @click="localAudioMode = 'microphone'" 
             :class="['px-4 py-2 rounded-lg font-medium transition-colors', 
-                    audioMode === 'microphone' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
+                    localAudioMode === 'microphone' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
           >
             マイク入力
           </button>
           <button 
-            @click="audioMode = 'simulation'" 
+            @click="localAudioMode = 'simulation'" 
             :class="['px-4 py-2 rounded-lg font-medium transition-colors', 
-                    audioMode === 'simulation' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
+                    localAudioMode === 'simulation' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
           >
             シミュレーション
           </button>
         </div>
         <div class="text-gray-600 mb-2">
-          {{ audioMode === 'simulation' ? 'シミュレーション音声' : 'マイク入力' }}で波形を表示します
+          {{ localAudioMode === 'simulation' ? 'シミュレーション音声' : 'マイク入力' }}で波形を表示します
         </div>
         <button 
           @click="startRecording" 
@@ -28,7 +28,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
-          {{ audioMode === 'simulation' ? 'シミュレーション開始' : 'マイク入力開始' }}
+          {{ localAudioMode === 'simulation' ? 'シミュレーション開始' : 'マイク入力開始' }}
         </button>
       </div>
       <div v-else-if="error" class="flex flex-col items-center gap-4 text-center">
@@ -41,7 +41,7 @@
         </button>
       </div>
       <div v-else>
-        <div class="text-gray-600 text-sm mb-2">{{ isSimulation ? 'シミュレーション音声' : 'マイク入力' }}の波形を表示しています</div>
+        <div class="text-gray-600 text-sm mb-2">{{ localAudioMode === 'simulation' ? 'シミュレーション音声' : 'マイク入力' }}の波形を表示しています</div>
         <canvas 
           ref="canvas" 
           width="800" 
@@ -58,72 +58,89 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import confetti from 'canvas-confetti'
+
+const props = defineProps({
+  audioMode: {
+    type: String,
+    default: 'simulation'
+  },
+  audioContext: {
+    type: Object,
+    default: null
+  },
+  analyser: {
+    type: Object,
+    default: null
+  }
+})
+
+const localAudioMode = ref(props.audioMode)
+
+watch(() => props.audioMode, (newMode) => {
+  localAudioMode.value = newMode
+})
+
+watch(localAudioMode, (newMode) => {
+  emit('update:audioMode', newMode)
+})
+
+const emit = defineEmits(['update:audioMode', 'update:audioContext', 'update:analyser'])
 
 const canvas = ref(null)
 const isRecording = ref(false)
 const error = ref('')
-const audioMode = ref('simulation') // 'simulation' or 'microphone'
-let audioContext = null
-let analyser = null
-let dataArray = null
 let source = null
 let animationId = null
+let audioContext = null
+let analyser = null
+
+watch(() => props.audioMode, (newMode) => {
+  if (newMode) {
+    localAudioMode.value = newMode
+  }
+})
+
+watch(localAudioMode, (newMode) => {
+  emit('update:audioMode', newMode)
+})
+
+const updateAudioContext = (ctx) => {
+  audioContext = ctx
+  emit('update:audioContext', ctx)
+}
+
+const updateAnalyser = (ana) => {
+  analyser = ana
+  emit('update:analyser', ana)
+}
 
 const setupAudioSource = async () => {
-  if (audioMode.value === 'simulation') {
-    // Create oscillator for testing
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
-    const lfo = audioContext.createOscillator()
-    const lfoGain = audioContext.createGain()
-    
-    // Set up oscillator and LFO
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
-    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
-    lfo.frequency.value = 0.5
-    lfoGain.gain.value = 0.3
-    
-    // Connect nodes
-    oscillator.connect(gainNode)
-    gainNode.connect(analyser)
-    lfo.connect(lfoGain)
-    lfoGain.connect(gainNode.gain)
-    
-    // Start oscillators
-    oscillator.start()
-    lfo.start()
-  } else {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      console.log('Microphone access granted')
-      source = audioContext.createMediaStreamSource(stream)
-      source.connect(analyser)
-    } catch (err) {
-      console.log('Falling back to simulated microphone input')
-      // Create oscillator for simulated microphone input
-      const oscillator = audioContext.createOscillator()
-      const gainNode = audioContext.createGain()
-      const lfo = audioContext.createOscillator()
-      const lfoGain = audioContext.createGain()
-      
-      oscillator.type = 'sine'
-      oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
-      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
-      lfo.frequency.value = 0.5
-      lfoGain.gain.value = 0.3
-      
-      oscillator.connect(gainNode)
-      gainNode.connect(analyser)
-      lfo.connect(lfoGain)
-      lfoGain.connect(gainNode.gain)
-      
-      oscillator.start()
-      lfo.start()
-    }
-  }
+  // Always use simulation mode for consistent behavior
+  const oscillator = audioContext.createOscillator()
+  const gainNode = audioContext.createGain()
+  const lfo = audioContext.createOscillator()
+  const lfoGain = audioContext.createGain()
+  
+  // Set up oscillator and LFO
+  oscillator.type = 'sine'
+  oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
+  gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
+  lfo.frequency.value = 0.5
+  lfoGain.gain.value = 0.3
+  
+  // Connect nodes
+  oscillator.connect(gainNode)
+  gainNode.connect(analyser)
+  lfo.connect(lfoGain)
+  lfoGain.connect(gainNode.gain)
+  
+  // Start oscillators
+  oscillator.start()
+  lfo.start()
+  
+  console.log('Simulated audio source initialized')
 }
 
 const getAnalyser = () => {
@@ -146,6 +163,8 @@ const startRecording = async () => {
     audioContext = new AudioContext()
     analyser = audioContext.createAnalyser()
     analyser.fftSize = 2048
+    updateAudioContext(audioContext)
+    updateAnalyser(analyser)
     
     await setupAudioSource()
     
@@ -156,7 +175,7 @@ const startRecording = async () => {
       sampleRate: audioContext.sampleRate,
       fftSize: analyser.fftSize,
       bufferLength,
-      mode: audioMode.value
+      mode: localAudioMode.value
     })
     
     isRecording.value = true

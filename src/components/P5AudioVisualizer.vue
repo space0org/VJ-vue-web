@@ -8,12 +8,28 @@
       <div v-if="error" class="absolute inset-0 flex items-center justify-center text-red-500">
         {{ error }}
       </div>
-      <button
-        @click="toggleRecording"
-        class="absolute top-4 right-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
-      >
-        {{ isRecording ? '停止' : '開始' }}
-      </button>
+      <div class="absolute top-4 right-4 flex items-center gap-2">
+        <button 
+          @click="localAudioMode = 'microphone'" 
+          :class="['px-4 py-2 rounded-lg font-medium transition-colors', 
+                  localAudioMode === 'microphone' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
+        >
+          マイク入力
+        </button>
+        <button 
+          @click="localAudioMode = 'simulation'" 
+          :class="['px-4 py-2 rounded-lg font-medium transition-colors', 
+                  localAudioMode === 'simulation' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700']"
+        >
+          シミュレーション
+        </button>
+        <button
+          @click="toggleRecording"
+          class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+        >
+          {{ isRecording ? '停止' : '開始' }}
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -22,19 +38,39 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import p5 from 'p5'
 
+const props = defineProps({
+  audioMode: {
+    type: String,
+    default: 'simulation'
+  },
+  audioContext: {
+    type: Object,
+    default: null
+  },
+  analyser: {
+    type: Object,
+    default: null
+  }
+})
+
+const localAudioMode = ref(props.audioMode)
+
+watch(() => props.audioMode, (newMode) => {
+  localAudioMode.value = newMode
+})
+
 const canvasContainer = ref(null)
 const error = ref(null)
 const isRecording = ref(false)
 let p5Instance = null
-let audioContext = null
-let analyser = null
-let mediaStream = null
 
 const sketch = (p) => {
   const particles = []
   const particleCount = 150
   const connectionDistance = 100
   let hueOffset = 0
+  let dataArray = null
+  let bufferLength = null
 
   class GeometricParticle {
     constructor() {
@@ -113,13 +149,16 @@ const sketch = (p) => {
   }
 
   p.draw = () => {
-    if (!analyser) return
+    if (!props.analyser || !isRecording.value) return
     
     p.background(0, 0.1)
     
-    const dataArray = new Uint8Array(analyser.frequencyBinCount)
-    analyser.getByteFrequencyData(dataArray)
+    if (!dataArray || !bufferLength) {
+      bufferLength = props.analyser.frequencyBinCount
+      dataArray = new Uint8Array(bufferLength)
+    }
     
+    props.analyser.getByteFrequencyData(dataArray)
     const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
     const intensity = p.map(average, 0, 255, 1, 3)
     
@@ -152,54 +191,64 @@ const initializeP5 = () => {
   p5Instance = new p5(sketch, canvasContainer.value)
 }
 
-const toggleRecording = async () => {
-  try {
-    if (isRecording.value) {
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop())
-      }
-      if (audioContext) {
-        audioContext.close()
-      }
-      isRecording.value = false
-      error.value = null
-      return
-    }
+const audioMode = ref('simulation')
 
-    // Create audio context and analyzer
-    audioContext = new (window.AudioContext || window.webkitAudioContext)()
-    analyser = audioContext.createAnalyser()
-    analyser.fftSize = 2048
-
+const setupAudioSource = async () => {
+  if (localAudioMode.value === 'simulation') {
     // Create oscillator for testing
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
+    const oscillator = props.audioContext.createOscillator()
+    const gainNode = props.audioContext.createGain()
+    const lfo = props.audioContext.createOscillator()
+    const lfoGain = props.audioContext.createGain()
     
-    // Set up oscillator
+    // Set up oscillator and LFO
     oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
-    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
-    
-    // Create LFO for amplitude modulation
-    const lfo = audioContext.createOscillator()
-    const lfoGain = audioContext.createGain()
+    oscillator.frequency.setValueAtTime(440, props.audioContext.currentTime)
+    gainNode.gain.setValueAtTime(0.5, props.audioContext.currentTime)
     lfo.frequency.value = 0.5
     lfoGain.gain.value = 0.3
     
     // Connect nodes
     oscillator.connect(gainNode)
-    gainNode.connect(analyser)
+    gainNode.connect(props.analyser)
     lfo.connect(lfoGain)
     lfoGain.connect(gainNode.gain)
     
     // Start oscillators
     oscillator.start()
     lfo.start()
-    
+  } else {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      console.log('Microphone access granted')
+      mediaStream = stream
+      source = props.audioContext.createMediaStreamSource(stream)
+      source.connect(props.analyser)
+    } catch (err) {
+      console.log('Falling back to simulated microphone input')
+      localAudioMode.value = 'simulation'
+      await setupAudioSource()
+    }
+  }
+}
+
+const toggleRecording = () => {
+  try {
+    if (isRecording.value) {
+      isRecording.value = false
+      error.value = null
+      return
+    }
+
+    if (!props.audioContext || !props.analyser) {
+      error.value = 'オーディオの初期化が必要です'
+      return
+    }
+
     isRecording.value = true
     error.value = null
 
-    console.log('Test audio signal initialized')
+    console.log('Geometric visualizer started in', localAudioMode.value, 'mode')
   } catch (err) {
     console.error('Error initializing audio:', err)
     error.value = 'オーディオの初期化エラー'
@@ -212,12 +261,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(track => track.stop())
-  }
-  if (audioContext) {
-    audioContext.close()
-  }
   if (p5Instance) {
     p5Instance.remove()
   }
