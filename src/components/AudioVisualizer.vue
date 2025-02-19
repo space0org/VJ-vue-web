@@ -117,30 +117,44 @@ const updateAnalyser = (ana) => {
 }
 
 const setupAudioSource = async () => {
-  // Always use simulation mode for consistent behavior
-  const oscillator = audioContext.createOscillator()
-  const gainNode = audioContext.createGain()
-  const lfo = audioContext.createOscillator()
-  const lfoGain = audioContext.createGain()
-  
-  // Set up oscillator and LFO
-  oscillator.type = 'sine'
-  oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
-  gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
-  lfo.frequency.value = 0.5
-  lfoGain.gain.value = 0.3
-  
-  // Connect nodes
-  oscillator.connect(gainNode)
-  gainNode.connect(analyser)
-  lfo.connect(lfoGain)
-  lfoGain.connect(gainNode.gain)
-  
-  // Start oscillators
-  oscillator.start()
-  lfo.start()
-  
-  console.log('Simulated audio source initialized')
+  try {
+    if (localAudioMode.value === 'simulation') {
+      // Create oscillator for testing
+      const oscillator = audioContext.createOscillator()
+      const gainNode = audioContext.createGain()
+      const lfo = audioContext.createOscillator()
+      const lfoGain = audioContext.createGain()
+      
+      // Set up oscillator and LFO
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
+      gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
+      lfo.frequency.value = 0.5
+      lfoGain.gain.value = 0.3
+      
+      // Connect nodes
+      oscillator.connect(gainNode)
+      gainNode.connect(analyser)
+      lfo.connect(lfoGain)
+      lfoGain.connect(gainNode.gain)
+      
+      // Start oscillators
+      oscillator.start()
+      lfo.start()
+      
+      console.log('Simulated audio source initialized')
+    } else {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      console.log('Microphone access granted')
+      source = audioContext.createMediaStreamSource(stream)
+      source.connect(analyser)
+    }
+  } catch (err) {
+    console.error('Error setting up audio source:', err)
+    // Fallback to simulation mode
+    localAudioMode.value = 'simulation'
+    await setupAudioSource()
+  }
 }
 
 const getAnalyser = () => {
@@ -160,9 +174,13 @@ const startRecording = async () => {
     console.log('Starting recording...')
     error.value = ''
     
-    audioContext = new AudioContext()
-    analyser = audioContext.createAnalyser()
-    analyser.fftSize = 2048
+    if (!audioContext) {
+      audioContext = new AudioContext()
+    }
+    if (!analyser) {
+      analyser = audioContext.createAnalyser()
+      analyser.fftSize = 2048
+    }
     updateAudioContext(audioContext)
     updateAnalyser(analyser)
     

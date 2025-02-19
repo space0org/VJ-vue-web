@@ -53,10 +53,19 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['update:audioMode'])
 const localAudioMode = ref(props.audioMode)
+const error = ref(null)
+const isRecording = ref(false)
 
 watch(() => props.audioMode, (newMode) => {
-  localAudioMode.value = newMode
+  if (newMode) {
+    localAudioMode.value = newMode
+  }
+})
+
+watch(localAudioMode, (newMode) => {
+  emit('update:audioMode', newMode)
 })
 
 const canvasContainer = ref(null)
