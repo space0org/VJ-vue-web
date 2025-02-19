@@ -3,7 +3,7 @@
     <div class="w-full bg-white rounded-lg shadow-sm p-6">
       <div v-if="!isRecording && !error" class="flex flex-col items-center gap-4">
         <div class="text-gray-600 mb-2">
-          マイクを使用して波形を表示します
+          シミュレーション音声で波形を表示します
         </div>
         <button 
           @click="startRecording" 
@@ -15,7 +15,7 @@
             <line x1="12" y1="19" x2="12" y2="23"/>
             <line x1="8" y1="23" x2="16" y2="23"/>
           </svg>
-          マイクを許可する
+          シミュレーション開始
         </button>
       </div>
       <div v-else-if="error" class="flex flex-col items-center gap-4 text-center">
@@ -28,7 +28,7 @@
         </button>
       </div>
       <div v-else>
-        <div class="text-gray-600 text-sm mb-2">マイクからの入力を波形で表示しています</div>
+        <div class="text-gray-600 text-sm mb-2">シミュレーション音声の波形を表示しています</div>
         <canvas 
           ref="canvas" 
           width="800" 
@@ -73,15 +73,32 @@ const startRecording = async () => {
   try {
     console.log('Starting recording...')
     error.value = ''
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    console.log('Microphone access granted')
     
     audioContext = new AudioContext()
     analyser = audioContext.createAnalyser()
-    source = audioContext.createMediaStreamSource(stream)
-    source.connect(analyser)
-    
     analyser.fftSize = 2048
+    
+    // Create oscillator for testing
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+    
+    // Set up oscillator
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(440, audioContext.currentTime)
+    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
+    
+    // Create LFO for amplitude modulation
+    const lfo = audioContext.createOscillator()
+    const lfoGain = audioContext.createGain()
+    lfo.frequency.value = 0.5
+    lfoGain.gain.value = 0.3
+    
+    // Connect nodes
+    oscillator.connect(gainNode)
+    gainNode.connect(analyser)
+    lfo.connect(lfoGain)
+    lfoGain.connect(gainNode.gain)
+    
     const bufferLength = analyser.frequencyBinCount
     dataArray = new Uint8Array(bufferLength)
     
@@ -90,6 +107,10 @@ const startRecording = async () => {
       fftSize: analyser.fftSize,
       bufferLength
     })
+    
+    // Start oscillators
+    oscillator.start()
+    lfo.start()
     
     isRecording.value = true
     confetti()
