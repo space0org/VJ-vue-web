@@ -4,7 +4,8 @@
       ref="canvasContainer" 
       @click="handleTap"
       @touchstart="handleTap"
-      class="w-full h-[50vh] min-h-96 bg-black rounded-lg cursor-pointer select-none"
+      class="w-full bg-black rounded-lg cursor-pointer select-none"
+      style="height: 50vh; min-height: 300px;"
     >
       <div class="absolute inset-0 flex items-center justify-center text-white/50 pointer-events-none">
         タップしてエフェクトを作成
@@ -20,6 +21,16 @@ import p5 from 'p5'
 const canvasContainer = ref(null)
 let p5Instance = null
 let effects = []
+
+// Wait for DOM to be ready before initializing p5
+const initializeP5 = () => {
+  if (!canvasContainer.value) return
+  console.log('Initializing p5.js with container:', {
+    width: canvasContainer.value.clientWidth,
+    height: canvasContainer.value.clientHeight
+  })
+  p5Instance = new p5(sketch)
+}
 
 class Effect {
   constructor(p, x, y) {
@@ -123,7 +134,8 @@ const sketch = (p) => {
 }
 
 onMounted(() => {
-  p5Instance = new p5(sketch)
+  // Use nextTick to ensure DOM is ready
+  setTimeout(initializeP5, 100)
 })
 
 onUnmounted(() => {
