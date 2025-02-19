@@ -138,7 +138,14 @@ const sketch = function(p) {
 }
 
 onMounted(() => {
-  p5Instance = new p5(sketch, canvasContainer.value)
+  setTimeout(() => {
+    if (canvasContainer.value) {
+      p5Instance = new p5(sketch, canvasContainer.value)
+      console.log('AudioEffectScreen: p5.js instance created')
+    } else {
+      console.error('AudioEffectScreen: Canvas container not available')
+    }
+  }, 100)
 })
 
 onUnmounted(() => {
