@@ -17,7 +17,7 @@ const analyser = ref(null)
           v-model:analyser="analyser"
         />
       </div>
-      <div class="mt-4">
+      <div class="mt-8">
         <h2 class="text-xl font-bold text-center mb-4">音声エフェクト</h2>
         <P5EffectScreen 
           :audioContext="audioContext"

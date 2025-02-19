@@ -1,8 +1,9 @@
 <template>
   <div>
     <div class="w-full bg-white rounded-lg shadow-sm p-6">
-      <div v-if="!isRecording && !error" class="flex flex-col items-center gap-4">
+      <div class="flex flex-col items-center gap-4">
         <button 
+          v-if="!isRecording"
           @click="startRecording" 
           class="px-6 py-3 bg-blue-500 text-white font-medium rounded-lg shadow-sm hover:bg-blue-600 transition-colors flex items-center gap-2"
         >
@@ -11,6 +12,18 @@
           </svg>
           マイク
         </button>
+        <button 
+          v-else
+          @click="stopRecording" 
+          class="px-6 py-3 bg-red-500 text-white font-medium rounded-lg shadow-sm hover:bg-red-600 transition-colors flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+          </svg>
+          停止
+        </button>
+        <div v-if="error" class="text-red-500 font-medium mt-2">{{ error }}</div>
       </div>
       <div v-else-if="error" class="flex flex-col items-center gap-4 text-center">
         <div class="text-red-500 font-medium">{{ error }}</div>
@@ -120,8 +133,7 @@ const startRecording = async () => {
     console.log('Audio context initialized:', {
       sampleRate: audioContext.sampleRate,
       fftSize: analyser.fftSize,
-      bufferLength,
-      mode: localAudioMode.value
+      bufferLength
     })
     
     isRecording.value = true
@@ -129,14 +141,8 @@ const startRecording = async () => {
     
     requestAnimationFrame(draw)
   } catch (err) {
-    let message = 'マイクの許可が得られませんでした'
-    if (err.name === 'NotFoundError') {
-      message = 'マイクが見つかりませんでした。マイクが接続されているか確認してください。'
-    } else if (err.name === 'NotAllowedError') {
-      message = 'マイクの使用が許可されませんでした。ブラウザの設定を確認してください。'
-    }
-    error.value = message
-    console.error(message, err)
+    error.value = 'マイクの許可が得られませんでした'
+    console.error('Error initializing audio:', err)
   }
 }
 
