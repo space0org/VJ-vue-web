@@ -3,7 +3,7 @@
     <div 
       ref="canvasContainer" 
       class="w-full bg-black rounded-lg overflow-hidden"
-      style="height: 60vh; min-height: 400px;"
+      style="height: 50vh;"
     >
       <div v-if="error" class="absolute inset-0 flex items-center justify-center text-red-500">
         {{ error }}

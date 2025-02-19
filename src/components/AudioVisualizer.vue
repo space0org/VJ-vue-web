@@ -6,6 +6,7 @@
           v-if="!isRecording"
           @click="startRecording" 
           class="px-6 py-3 bg-blue-500 text-white font-medium rounded-lg shadow-sm hover:bg-blue-600 transition-colors flex items-center gap-2"
+          :disabled="!!error"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
@@ -24,11 +25,13 @@
           停止
         </button>
         <div v-if="error" class="text-red-500 font-medium mt-2">{{ error }}</div>
+        <canvas 
+          ref="canvas" 
+          width="800" 
+          height="200" 
+          class="w-full h-48 border border-gray-200 rounded-lg bg-white mt-4"
+        ></canvas>
       </div>
-      <div v-else-if="error" class="flex flex-col items-center gap-4 text-center">
-        <div class="text-red-500 font-medium">{{ error }}</div>
-        <button 
-          @click="retryRecording" 
           class="px-6 py-3 bg-blue-500 text-white font-medium rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
         >
           再試行する
@@ -91,6 +94,11 @@ const setupAudioSource = async () => {
     console.log('Microphone access granted')
     source = audioContext.createMediaStreamSource(stream)
     source.connect(analyser)
+    
+    if (!dataArray || !bufferLength) {
+      bufferLength = analyser.frequencyBinCount
+      dataArray = new Uint8Array(bufferLength)
+    }
   } catch (err) {
     console.error('Error setting up audio source:', err)
     error.value = 'マイクの許可が得られませんでした'
