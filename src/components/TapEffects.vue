@@ -4,7 +4,7 @@
       ref="canvasContainer" 
       @click="handleTap"
       @touchstart="handleTap"
-      class="w-full h-96 bg-black rounded-lg cursor-pointer select-none"
+      class="w-full h-[50vh] min-h-96 bg-black rounded-lg cursor-pointer select-none"
     >
       <div class="absolute inset-0 flex items-center justify-center text-white/50 pointer-events-none">
         タップしてエフェクトを作成
