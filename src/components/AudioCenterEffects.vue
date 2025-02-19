@@ -2,13 +2,11 @@
   <div class="relative">
     <div 
       ref="canvasContainer" 
-      @click="handleTap"
-      @touchstart="handleTap"
       class="w-full bg-black rounded-lg cursor-pointer select-none"
       style="height: 50vh; min-height: 300px;"
     >
       <div class="absolute inset-0 flex items-center justify-center text-white/50 pointer-events-none">
-        タップしてエフェクトを作成
+        音に反応するエフェクト
       </div>
     </div>
   </div>
@@ -18,31 +16,32 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import p5 from 'p5'
 
+const props = defineProps({
+  audioAnalyser: {
+    type: Object,
+    required: true,
+    validator: (value) => {
+      return value && typeof value.getByteFrequencyData === 'function' && 
+             typeof value.frequencyBinCount === 'number'
+    }
+  }
+})
+
 const canvasContainer = ref(null)
 let p5Instance = null
 let effects = []
 
-// Wait for DOM to be ready before initializing p5
-const initializeP5 = () => {
-  if (!canvasContainer.value) return
-  console.log('Initializing p5.js with container:', {
-    width: canvasContainer.value.clientWidth,
-    height: canvasContainer.value.clientHeight
-  })
-  p5Instance = new p5(sketch)
-}
-
-class Effect {
-  constructor(p, x, y) {
+class CenterEffect {
+  constructor(p) {
     this.p = p
-    this.x = x
-    this.y = y
+    this.x = p.width / 2
+    this.y = p.height / 2
     this.size = 0
     this.maxSize = p.random(100, 200)
     this.hue = p.random(360)
     this.alpha = 1
     this.speed = p.random(2, 5)
-    this.particles = Array.from({ length: 8 }, () => ({
+    this.particles = Array.from({ length: 12 }, () => ({
       angle: p.random(p.TWO_PI),
       speed: p.random(1, 3),
       size: p.random(3, 8),
@@ -64,13 +63,11 @@ class Effect {
   draw() {
     const p = this.p
     
-    // Draw main ripple
     p.noFill()
     p.stroke(this.hue, 80, 100, this.alpha)
     p.strokeWeight(2)
     p.circle(this.x, this.y, this.size)
     
-    // Draw particles
     p.noStroke()
     this.particles.forEach(particle => {
       const x = this.x + Math.cos(particle.angle) * particle.distance
@@ -81,18 +78,11 @@ class Effect {
   }
 }
 
-const handleTap = (event) => {
-  if (!p5Instance) return
-  
-  const rect = canvasContainer.value.getBoundingClientRect()
-  const x = event.clientX - rect.left
-  const y = event.clientY - rect.top
-  
-  effects.push(new Effect(p5Instance, x, y))
-}
-
 const sketch = (p) => {
   let effects = []
+  let lastAudioLevel = 0
+  const AUDIO_THRESHOLD = 50
+  const MIN_TRIGGER_INTERVAL = 100 // ms
   let lastTriggerTime = 0
 
   p.setup = () => {
@@ -109,22 +99,60 @@ const sketch = (p) => {
       canvas.parent(canvasContainer.value)
       p.colorMode(p.HSB, 360, 100, 100, 1)
       p.background(0)
-      console.log('Tap effects canvas initialized')
+      effects = []
+      console.log('Audio center effects canvas initialized')
     } catch (error) {
-      console.error('Failed to setup tap effects canvas:', error)
+      console.error('Failed to setup audio center effects canvas:', error)
+    }
+    
+    try {
+      p.colorMode(p.HSB, 360, 100, 100, 1)
+      p.background(0)
+      console.log('Audio center effects canvas initialized successfully')
+    } catch (error) {
+      console.error('Failed to setup audio center effects:', error)
+    }
+
+    try {
+      const canvas = p.createCanvas(
+        canvasContainer.value.clientWidth,
+        canvasContainer.value.clientHeight
+      )
+      canvas.parent(canvasContainer.value)
+      p.colorMode(p.HSB, 360, 100, 100, 1)
+      p.background(0)
+      console.log('Audio center effects canvas initialized')
+    } catch (error) {
+      console.error('Failed to setup audio center effects canvas:', error)
     }
   }
 
   p.draw = () => {
+    if (!props.audioAnalyser) return
+    
     p.background(0, 0.1)
     
-    effects = effects.filter(effect => {
-      const alive = effect.update()
-      if (alive) {
-        effect.draw()
+    try {
+      const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(dataArray)
+      
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+      const threshold = 50 // Adjust this value based on testing
+      
+      if (average > threshold) {
+        effects.push(new CenterEffect(p))
       }
-      return alive
-    })
+      
+      effects = effects.filter(effect => {
+        const alive = effect.update()
+        if (alive) {
+          effect.draw()
+        }
+        return alive
+      })
+    } catch (error) {
+      console.error('Error in p5 draw loop:', error)
+    }
   }
 
   p.windowResized = () => {
@@ -137,8 +165,10 @@ const sketch = (p) => {
 }
 
 onMounted(() => {
-  // Use nextTick to ensure DOM is ready
-  setTimeout(initializeP5, 100)
+  setTimeout(() => {
+    if (!canvasContainer.value) return
+    p5Instance = new p5(sketch)
+  }, 100)
 })
 
 onUnmounted(() => {

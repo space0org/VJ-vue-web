@@ -57,6 +57,12 @@ let dataArray = null
 let source = null
 let animationId = null
 
+defineExpose({
+  isRecording,
+  error,
+  getAnalyser
+})
+
 const getAnalyser = () => {
   if (!analyser) {
     console.warn('Audio analyser not initialized')

@@ -79,12 +79,61 @@ class Particle {
 }
 
 const sketch = (p) => {
-  let canvas = null
+  let particles = []
+  const particleCount = 1000
+  let hueOffset = 0
 
-  const initializeCanvas = () => {
+  class Particle {
+    constructor(p) {
+      this.p = p
+      this.reset()
+    }
+
+    reset() {
+      this.x = this.p.random(this.p.width)
+      this.y = this.p.random(this.p.height)
+      this.size = this.p.random(2, 4)
+      this.speedX = this.p.random(-1, 1)
+      this.speedY = this.p.random(-1, 1)
+      this.hue = this.p.random(360)
+    }
+
+    update(intensity) {
+      this.x += this.speedX * intensity
+      this.y += this.speedY * intensity
+      this.hue = (this.hue + 0.5) % 360
+
+      if (this.x < 0 || this.x > this.p.width || 
+          this.y < 0 || this.y > this.p.height) {
+        this.reset()
+      }
+    }
+
+    draw() {
+      this.p.noStroke()
+      this.p.fill(this.hue, 80, 100, 0.7)
+      this.p.circle(this.x, this.y, this.size)
+    }
+  }
+
+  p.setup = () => {
     if (!canvasContainer.value) {
       console.error('Canvas container not available during p5 setup')
-      return false
+      return
+    }
+    particles = Array.from({ length: particleCount }, () => new Particle(p))
+
+    try {
+      const canvas = p.createCanvas(
+        canvasContainer.value.clientWidth,
+        canvasContainer.value.clientHeight
+      )
+      canvas.parent(canvasContainer.value)
+      p.colorMode(p.HSB, 360, 100, 100, 1)
+      p.background(0)
+      console.log('P5 visualizer canvas initialized')
+    } catch (error) {
+      console.error('Failed to setup P5 visualizer canvas:', error)
     }
 
     try {
