@@ -32,7 +32,6 @@
           class="w-full h-48 border border-gray-200 rounded-lg bg-white mt-4"
         ></canvas>
       </div>
-          class="px-6 py-3 bg-blue-500 text-white font-medium rounded-lg shadow-sm hover:bg-blue-600 transition-colors"
     </div>
   </div>
 </template>
