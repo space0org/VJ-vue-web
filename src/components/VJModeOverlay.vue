@@ -4,7 +4,7 @@
       ref="vjContainer" 
      :class="[
         'vj-overlay transition-all duration-300 ease-in-out bg-black',
-        isActive ? 'fixed inset-0 z-[9999] opacity-100' : 'fixed inset-0 z-[-1] opacity-0 pointer-events-none'
+        isActive ? 'fixed inset-0 z-[9999] opacity-100 vj-active' : 'fixed inset-0 z-[-1] opacity-0 pointer-events-none'
       ]"
     >
       <!-- Overlay container for all visualizations -->

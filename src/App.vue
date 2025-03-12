@@ -40,25 +40,23 @@ const activateVJMode = () => {
   
   // If activating, force a re-render by using nextTick
   if (isVJModeActive.value) {
-    nextTick(() => {
-      console.log('App.vue: VJ mode nextTick: isVJModeActive =', isVJModeActive.value)
+    // Force a re-initialization of the VJ mode overlay immediately
+    window.dispatchEvent(new CustomEvent('vj-mode-activated', { 
+      detail: { audioAnalyser: audioAnalyser.value } 
+    }))
+    
+    // Add a small delay to ensure the component is mounted and visible
+    setTimeout(() => {
+      console.log('App.vue: VJ mode setTimeout: checking if overlay is visible')
+      const overlay = document.querySelector('.vj-overlay')
+      console.log('App.vue: VJ overlay element:', overlay ? 'found' : 'not found')
       
-      // Add a small delay to ensure the component is mounted
-      setTimeout(() => {
-        console.log('App.vue: VJ mode setTimeout: checking if overlay is visible')
-        const overlay = document.querySelector('.vj-overlay')
-        console.log('App.vue: VJ overlay element:', overlay ? 'found' : 'not found')
-        
-        // Force a re-initialization of the VJ mode overlay
-        if (overlay) {
-          console.log('App.vue: Forcing re-initialization of overlay')
-          // Dispatch a custom event to force re-initialization
-          window.dispatchEvent(new CustomEvent('vj-mode-activated', { 
-            detail: { audioAnalyser: audioAnalyser.value } 
-          }))
-        }
-      }, 100) // Reduced delay for faster response
-    })
+      if (overlay) {
+        // Force overlay to be visible by adding a class
+        overlay.classList.add('vj-active')
+        console.log('App.vue: Added vj-active class to overlay')
+      }
+    }, 100)
   }
 }
 
@@ -128,8 +126,8 @@ const deactivateVJMode = () => {
       @close="deactivateVJMode"
     />
     
-    <!-- VJ Mode Indicator -->
-    <div v-if="isVJModeActive" class="fixed top-4 left-4 bg-purple-600 text-white px-3 py-1 rounded-lg shadow-lg z-[10000]">
+   <!-- VJ Mode Indicator -->
+    <div v-if="isVJModeActive" class="vj-mode-indicator">
       VJモード実行中
     </div>
     <!-- Debug info -->
