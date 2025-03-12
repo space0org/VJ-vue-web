@@ -38,8 +38,14 @@
       </div>
     </div>
     <P5Visualizer 
-      v-if="isRecording && !error && analyser" 
-      :audioAnalyser="getAnalyser()" 
+      v-if="isRecording && !error && analyser && (props.mode === 'all' || props.mode === 'particles')" 
+      :audioAnalyser="getAnalyser()"
+      :theme="props.theme"
+    />
+    <FrequencyVisualizer 
+      v-if="isRecording && !error && analyser && (props.mode === 'all' || props.mode === 'frequency')" 
+      :audioAnalyser="getAnalyser()"
+      :theme="props.theme"
     />
   </div>
 </template>
@@ -47,6 +53,19 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import confetti from 'canvas-confetti'
+import FrequencyVisualizer from './FrequencyVisualizer.vue'
+import P5Visualizer from './P5Visualizer.vue'
+
+const props = defineProps({
+  mode: {
+    type: String,
+    default: 'all'
+  },
+  theme: {
+    type: String,
+    default: 'default'
+  }
+})
 
 const canvas = ref(null)
 const isRecording = ref(false)

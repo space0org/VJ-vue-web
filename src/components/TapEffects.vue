@@ -18,6 +18,28 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import p5 from 'p5'
 
+const props = defineProps({
+  theme: {
+    type: String,
+    default: 'default'
+  }
+})
+
+const getThemeColors = (theme) => {
+  switch (theme) {
+    case 'cool':
+      return { hueStart: 180, hueEnd: 240 }
+    case 'warm':
+      return { hueStart: 0, hueEnd: 60 }
+    case 'forest':
+      return { hueStart: 90, hueEnd: 150 }
+    case 'sunset':
+      return { hueStart: 0, hueEnd: 60, saturation: 100, brightness: 100 }
+    default:
+      return { hueStart: 0, hueEnd: 360 }
+  }
+}
+
 const canvasContainer = ref(null)
 let p5Instance = null
 let effects = []
@@ -39,7 +61,10 @@ class Effect {
     this.y = y
     this.size = 0
     this.maxSize = p.random(100, 200)
-    this.hue = p.random(360)
+    
+    const colors = getThemeColors(props.theme)
+    this.hue = p.random(colors.hueStart, colors.hueEnd)
+    
     this.alpha = 1
     this.speed = p.random(2, 5)
     this.particles = Array.from({ length: 8 }, () => ({
