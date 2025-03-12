@@ -3,8 +3,8 @@
    <div 
       ref="vjContainer" 
      :class="[
-        'vj-overlay transition-all duration-300 ease-in-out bg-black',
-        isActive ? 'fixed inset-0 z-[9999] opacity-100 vj-active' : 'fixed inset-0 z-[-1] opacity-0 pointer-events-none'
+        'vj-overlay fixed inset-0 transition-all duration-300 ease-in-out bg-black',
+        isActive ? 'z-[9999] opacity-100 vj-active' : 'z-[-1] opacity-0 pointer-events-none'
       ]"
     >
       <!-- Overlay container for all visualizations -->
@@ -160,6 +160,19 @@ const activate = () => {
   console.log('VJModeOverlay: isActive set to', isActive.value)
   console.log('VJModeOverlay: Audio analyser received:', props.audioAnalyser)
   
+  // Force the overlay to be visible by adding a class to the body
+  document.body.classList.add('vj-mode-active')
+  
+  // Force the overlay element to be visible
+  const overlay = document.querySelector('.vj-overlay')
+  if (overlay) {
+    overlay.classList.add('vj-active')
+    overlay.style.zIndex = '9999'
+    overlay.style.opacity = '1'
+    overlay.style.pointerEvents = 'auto'
+    console.log('VJModeOverlay: Forced overlay visibility')
+  }
+  
   // Initialize visualizations after DOM update
   setTimeout(() => {
     console.log('VJModeOverlay: Initializing visualizations')
@@ -241,7 +254,21 @@ const toggleLayer = (layerId) => {
 
 // Deactivate VJ mode
 const deactivate = () => {
+  console.log('VJModeOverlay: Deactivating VJ mode')
   isActive.value = false
+  
+  // Remove the class from the body
+  document.body.classList.remove('vj-mode-active')
+  
+  // Get the overlay element and remove the active class
+  const overlay = document.querySelector('.vj-overlay')
+  if (overlay) {
+    overlay.classList.remove('vj-active')
+    overlay.style.zIndex = '-1'
+    overlay.style.opacity = '0'
+    overlay.style.pointerEvents = 'none'
+    console.log('VJModeOverlay: Removed visibility from overlay')
+  }
   
   // Clean up animations
   if (waveformAnimationId) {
