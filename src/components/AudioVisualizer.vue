@@ -98,6 +98,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['analyser-ready'])
+
 const canvas = ref(null)
 const isRecording = ref(false)
 const error = ref('')
@@ -152,6 +154,11 @@ const startRecording = async () => {
       isRecording.value = true
       confetti()
       
+      // Emit the mock analyser for VJ mode
+      console.log('Emitting mock audio analyser to parent component')
+      emit('analyser-ready', analyser)
+      console.log('Mock audio analyser emitted')
+      
       requestAnimationFrame(draw)
       return
     }
@@ -173,6 +180,11 @@ const startRecording = async () => {
     
     isRecording.value = true
     confetti()
+    
+    // Emit the analyser for VJ mode
+    console.log('Emitting real audio analyser to parent component')
+    emit('analyser-ready', analyser)
+    console.log('Real audio analyser emitted')
     
     requestAnimationFrame(draw)
   } catch (err) {
