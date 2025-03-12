@@ -171,17 +171,19 @@ const draw = () => {
   animationId = requestAnimationFrame(draw)
 }
 
-const cleanup = () => {
+const stopRecording = () => {
+  isRecording.value = false
   if (animationId) {
-    console.log('Canceling animation frame')
     cancelAnimationFrame(animationId)
   }
   if (source) {
-    console.log('Disconnecting audio source')
     source.disconnect()
   }
+}
+
+const cleanup = () => {
+  stopRecording()
   if (audioContext) {
-    console.log('Closing audio context')
     audioContext.close()
   }
 }
