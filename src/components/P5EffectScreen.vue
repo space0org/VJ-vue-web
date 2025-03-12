@@ -34,10 +34,40 @@ let p5Instance = null
 const sketch = (p) => {
   let dataArray = null
   let bufferLength = null
+  let particles = []
+  
+  class Particle {
+    constructor() {
+      this.x = p.random(p.width)
+      this.y = p.random(p.height)
+      this.size = p.random(2, 5)
+      this.speedX = p.random(-1, 1)
+      this.speedY = p.random(-1, 1)
+      this.hue = p.random(360)
+    }
+    
+    update(intensity) {
+      this.x += this.speedX * intensity
+      this.y += this.speedY * intensity
+      
+      if (this.x < 0) this.x = p.width
+      if (this.x > p.width) this.x = 0
+      if (this.y < 0) this.y = p.height
+      if (this.y > p.height) this.y = 0
+      
+      this.hue = (this.hue + 0.5) % 360
+    }
+    
+    draw() {
+      p.noStroke()
+      p.fill(this.hue, 80, 100, 0.7)
+      p.circle(this.x, this.y, this.size)
+    }
+  }
 
   p.setup = () => {
     if (!canvasContainer.value) return
-
+    
     const canvas = p.createCanvas(
       canvasContainer.value.clientWidth,
       canvasContainer.value.clientHeight
@@ -45,6 +75,11 @@ const sketch = (p) => {
     canvas.parent(canvasContainer.value)
     p.colorMode(p.HSB, 360, 100, 100, 1)
     p.background(0)
+    
+    // Initialize particles
+    for (let i = 0; i < 100; i++) {
+      particles.push(new Particle())
+    }
   }
 
   p.draw = () => {
@@ -59,16 +94,15 @@ const sketch = (p) => {
     
     props.analyser.getByteFrequencyData(dataArray)
     
-    // Draw frequency spectrum visualization
-    const barWidth = p.width / bufferLength
-    p.noStroke()
+    // Calculate average intensity
+    const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+    const intensity = p.map(average, 0, 255, 1, 3)
     
-    for (let i = 0; i < bufferLength; i++) {
-      const barHeight = p.map(dataArray[i], 0, 255, 0, p.height)
-      const hue = p.map(i, 0, bufferLength, 0, 360)
-      p.fill(hue, 80, 100, 0.7)
-      p.rect(i * barWidth, p.height - barHeight, barWidth, barHeight)
-    }
+    // Update and draw particles
+    particles.forEach(particle => {
+      particle.update(intensity)
+      particle.draw()
+    })
   }
 
   p.windowResized = () => {

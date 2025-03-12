@@ -37,20 +37,7 @@
           再試行する
         </button>
       </div>
-      <div v-else>
-        <div class="text-gray-600 text-sm mb-2">{{ localAudioMode === 'simulation' ? 'シミュレーション音声' : 'マイク入力' }}の波形を表示しています</div>
-        <canvas 
-          ref="canvas" 
-          width="800" 
-          height="200" 
-          class="w-full h-48 border border-gray-200 rounded-lg bg-white"
-        ></canvas>
-      </div>
     </div>
-    <P5Visualizer 
-      v-if="isRecording && !error && analyser" 
-      :audioAnalyser="getAnalyser()" 
-    />
   </div>
 </template>
 
@@ -68,15 +55,7 @@ let animationId = null
 let audioContext = null
 let analyser = null
 
-watch(() => props.audioMode, (newMode) => {
-  if (newMode) {
-    localAudioMode.value = newMode
-  }
-})
 
-watch(localAudioMode, (newMode) => {
-  emit('update:audioMode', newMode)
-})
 
 const updateAudioContext = (ctx) => {
   audioContext = ctx
