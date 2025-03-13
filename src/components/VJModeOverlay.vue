@@ -432,6 +432,63 @@ const initWaveformVisualization = () => {
         canvasCtx.stroke()
       }
     }
+    else if (activeStyle.value === 'circular') {
+      // Circular waveform style - ripples from center
+      const centerX = width / 2
+      const centerY = height / 2
+      
+      // Get average waveform value for radius calculation
+      let sum = 0
+      for (let i = 0; i < waveformDataArray.length; i++) {
+        sum += waveformDataArray[i]
+      }
+      const avgValue = sum / waveformDataArray.length / 128.0
+      
+      // Draw multiple circles with varying radii
+      const maxRadius = Math.min(width, height) / 2
+      const numCircles = 20
+      
+      for (let i = 0; i < numCircles; i++) {
+        const ratio = i / numCircles
+        const radius = ratio * maxRadius * (0.5 + avgValue * 0.5)
+        
+        // Use theme colors with varying opacity
+        const colors = getThemeColors(props.theme)
+        const hue = (colors.hueStart + (i * 10)) % 360
+        const opacity = 1 - ratio
+        
+        canvasCtx.beginPath()
+        canvasCtx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+        canvasCtx.strokeStyle = `hsla(${hue}, 100%, 70%, ${opacity})`
+        canvasCtx.stroke()
+      }
+      
+      // Draw waveform as circular path
+      canvasCtx.beginPath()
+      const samples = 100
+      const angleStep = (Math.PI * 2) / samples
+      
+      for (let i = 0; i < samples; i++) {
+        const angle = i * angleStep
+        const index = Math.floor((i / samples) * waveformDataArray.length)
+        const value = waveformDataArray[index] / 128.0
+        const radius = maxRadius * 0.3 * value
+        
+        const x = centerX + Math.cos(angle) * radius
+        const y = centerY + Math.sin(angle) * radius
+        
+        if (i === 0) {
+          canvasCtx.moveTo(x, y)
+        } else {
+          canvasCtx.lineTo(x, y)
+        }
+      }
+      
+      canvasCtx.closePath()
+      const hue = colors.hueStart
+      canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+      canvasCtx.stroke()
+    }
     else {
       // Default fallback for other styles not yet implemented
       const hue = colors.hueStart
