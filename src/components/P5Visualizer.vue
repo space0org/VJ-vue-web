@@ -313,6 +313,38 @@ const sketch = (p) => {
     }
   }
 
+  // Draw circular background elements
+  const drawCircularBackground = (p, dataArray, intensity) => {
+    const centerX = p.width / 2
+    const centerY = p.height / 2
+    const maxRadius = Math.min(p.width, p.height) / 3
+    
+    // Get theme colors
+    const colors = getThemeColors(props.theme)
+    const hueStart = colors.hueStart || 0
+    const hueEnd = colors.hueEnd || 360
+    
+    // Draw background circles
+    p.noFill()
+    p.strokeWeight(1)
+    
+    // Inner circle
+    p.stroke(hueStart, 30, 80, 0.2)
+    p.circle(centerX, centerY, maxRadius * 1.4)
+    
+    // Outer circle
+    p.stroke(hueEnd, 30, 80, 0.2)
+    p.circle(centerX, centerY, maxRadius * 2)
+    
+    // Draw audio-reactive circle
+    const avgAmplitude = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length
+    const radiusVariation = p.map(avgAmplitude, 0, 255, 0, maxRadius * 0.2)
+    
+    p.strokeWeight(2)
+    p.stroke(hueOffset, 80, 100, 0.5)
+    p.circle(centerX, centerY, maxRadius * 1.7 + radiusVariation)
+  }
+
   p.draw = () => {
     if (!props.audioAnalyser) {
       console.error('Audio analyser not available during draw')
@@ -346,39 +378,6 @@ const sketch = (p) => {
       console.error('Error in p5 draw loop:', error)
     }
   }
-  
-  // Draw circular background elements
-  const drawCircularBackground = (p, dataArray, intensity) => {
-    const centerX = p.width / 2
-    const centerY = p.height / 2
-    const maxRadius = Math.min(p.width, p.height) / 3
-    
-    // Get theme colors
-    const colors = getThemeColors(props.theme)
-    const hueStart = colors.hueStart || 0
-    const hueEnd = colors.hueEnd || 360
-    
-    // Draw background circles
-    p.noFill()
-    p.strokeWeight(1)
-    
-    // Inner circle
-    p.stroke(hueStart, 30, 80, 0.2)
-    p.circle(centerX, centerY, maxRadius * 1.4)
-    
-    // Outer circle
-    p.stroke(hueEnd, 30, 80, 0.2)
-    p.circle(centerX, centerY, maxRadius * 2)
-    
-    // Draw audio-reactive circle
-    const avgAmplitude = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length
-    const radiusVariation = p.map(avgAmplitude, 0, 255, 0, maxRadius * 0.2)
-    
-    p.strokeWeight(2)
-    p.stroke(hueOffset, 80, 100, 0.5)
-    p.circle(centerX, centerY, maxRadius * 1.7 + radiusVariation)
-  }
-}
 
   p.windowResized = () => {
     if (!canvasContainer.value) {
