@@ -34,30 +34,48 @@
         class="absolute bottom-0 left-0 right-0 p-4 bg-black/50 transition-opacity duration-300"
         :class="controlsVisible ? 'opacity-100' : 'opacity-0'"
       >
-        <div class="flex justify-between items-center">
-          <div class="flex gap-2">
-            <button 
-              v-for="layer in layers" 
-              :key="layer.id"
-              @click="toggleLayer(layer.id)"
-              :class="[
-                'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
-                layer.active ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              ]"
-            >
-              {{ layer.name }}
-            </button>
+        <div class="flex flex-col gap-4">
+          <!-- Layer toggles -->
+          <div class="flex justify-between items-center">
+            <div class="flex gap-2">
+              <button 
+                v-for="layer in layers" 
+                :key="layer.id"
+                @click="toggleLayer(layer.id)"
+                :class="[
+                  'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
+                  layer.active ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                ]"
+              >
+                {{ layer.name }}
+              </button>
+            </div>
+            
+            <div class="flex gap-2">
+              <button 
+                @click="$emit('close')"
+                class="p-2 bg-red-500/30 hover:bg-red-500/50 rounded-full transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
           </div>
           
-          <div class="flex gap-2">
+          <!-- Style selection -->
+          <div class="flex flex-wrap gap-2 justify-center">
             <button 
-              @click="$emit('close')"
-              class="p-2 bg-red-500/30 hover:bg-red-500/50 rounded-full transition-colors"
+              v-for="style in visualizationStyles" 
+              :key="style.id"
+              @click="setActiveStyle(style.id)"
+              :class="[
+                'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
+                activeStyle === style.id ? 'bg-purple-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              ]"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+              {{ style.name }}
             </button>
           </div>
         </div>
@@ -127,6 +145,19 @@ const layers = ref([
   { id: 'particles', name: 'パーティクル', active: true },
   { id: 'frequency', name: '周波数', active: true }
 ])
+
+// Visualization styles
+const visualizationStyles = ref([
+  { id: 'default', name: 'デフォルト', active: true },
+  { id: 'rainbow', name: '虹色グラデーション', active: false },
+  { id: 'circular', name: '円形波形', active: false },
+  { id: 'geometric', name: '幾何学パターン', active: false },
+  { id: 'particles3d', name: 'パーティクルシステム', active: false },
+  { id: 'wireframe3d', name: '3Dワイヤーフレーム', active: false }
+])
+
+// Current active style
+const activeStyle = ref('default')
 
 // Animation IDs
 let waveformAnimationId = null
@@ -250,6 +281,16 @@ const toggleLayer = (layerId) => {
   if (layer) {
     layer.active = !layer.active
   }
+}
+
+// Set active visualization style
+const setActiveStyle = (styleId) => {
+  activeStyle.value = styleId
+  
+  // Re-initialize visualizations with the new style
+  initWaveformVisualization()
+  initFrequencyVisualization()
+  initParticleVisualization()
 }
 
 // Deactivate VJ mode
