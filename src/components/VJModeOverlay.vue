@@ -528,7 +528,7 @@ const initWaveformVisualization = () => {
       }
     }
     else if (activeStyle.value === 'circular') {
-      // Circular waveform style - ripples from center
+      // Enhanced circular waveform style - ripples from center with frequency response
       const centerX = width / 2
       const centerY = height / 2
       
@@ -539,39 +539,57 @@ const initWaveformVisualization = () => {
       }
       const avgValue = sum / waveformDataArray.length / 128.0
       
+      // Get frequency data for more dynamic modulation
+      const frequencyData = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(frequencyData)
+      const audioIntensity = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length / 255.0
+      
       // Draw multiple circles with varying radii
       const maxRadius = Math.min(width, height) / 2
-      const numCircles = 20
+      const numCircles = 25 // Increased from 20 for more detail
       
-      // Time-based color rotation
+      // Time-based color rotation with pulsing effect
       const time = Date.now() * 0.001
       const timeHueShift = (time * 15) % 360
+      const pulseEffect = Math.sin(time * 2) * 0.5 + 0.5 // Pulsing effect between 0-1
+      
+      // Add glow effect based on audio intensity
+      canvasCtx.shadowBlur = 15 * audioIntensity
+      canvasCtx.shadowColor = `hsla(${timeHueShift}, 100%, 70%, 0.8)`
       
       for (let i = 0; i < numCircles; i++) {
         const ratio = i / numCircles
-        const radius = ratio * maxRadius * (0.5 + avgValue * 0.5)
+        // More dynamic radius calculation with audio intensity
+        const radius = ratio * maxRadius * (0.4 + avgValue * 0.6 + audioIntensity * 0.2)
         
         // Use theme colors with time-based shift and varying opacity
         const colors = getThemeColors(props.theme)
         const hue = (colors.hueStart + timeHueShift + (i * 10)) % 360
-        const opacity = 1 - ratio
+        const saturation = colors.saturation || (90 + pulseEffect * 10)
+        const brightness = colors.brightness || (70 + pulseEffect * 30)
+        const opacity = (1 - ratio) * (0.7 + audioIntensity * 0.3)
         
         canvasCtx.beginPath()
         canvasCtx.arc(centerX, centerY, radius, 0, Math.PI * 2)
-        canvasCtx.strokeStyle = `hsla(${hue}, 100%, 70%, ${opacity})`
+        canvasCtx.strokeStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, ${opacity})`
+        canvasCtx.lineWidth = 2 + audioIntensity * 3 // Dynamic line width
         canvasCtx.stroke()
       }
       
-      // Draw waveform as circular path
+      // Draw waveform as circular path with increased samples
       canvasCtx.beginPath()
-      const samples = 100
+      const samples = 200 // Increased from 100 for smoother rendering
       const angleStep = (Math.PI * 2) / samples
       
       for (let i = 0; i < samples; i++) {
         const angle = i * angleStep
         const index = Math.floor((i / samples) * waveformDataArray.length)
         const value = waveformDataArray[index] / 128.0
-        const radius = maxRadius * 0.3 * value
+        
+        // More dynamic radius calculation with frequency data
+        const freqIndex = Math.floor((i / samples) * frequencyData.length)
+        const freqValue = frequencyData[freqIndex] / 255.0
+        const radius = maxRadius * (0.3 * value + 0.1 * freqValue)
         
         const x = centerX + Math.cos(angle) * radius
         const y = centerY + Math.sin(angle) * radius
@@ -584,9 +602,42 @@ const initWaveformVisualization = () => {
       }
       
       canvasCtx.closePath()
-      const hue = colors.hueStart
-      canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+      const colors = getThemeColors(props.theme)
+      const hue = (colors.hueStart + timeHueShift) % 360
+      const saturation = colors.saturation || 100
+      const brightness = colors.brightness || (80 + pulseEffect * 20)
+      canvasCtx.strokeStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, 0.9)`
+      canvasCtx.lineWidth = 3 + audioIntensity * 5 // Dynamic line width
       canvasCtx.stroke()
+      
+      // Add a second circular layer with frequency-based dots
+      const dotSamples = 36 // One dot every 10 degrees
+      const dotAngleStep = (Math.PI * 2) / dotSamples
+      
+      for (let i = 0; i < dotSamples; i++) {
+        const angle = i * dotAngleStep
+        const freqIndex = Math.floor((i / dotSamples) * frequencyData.length)
+        const freqValue = frequencyData[freqIndex] / 255.0
+        
+        // Radius based on frequency value
+        const dotRadius = maxRadius * (0.6 + freqValue * 0.3)
+        const dotSize = 3 + freqValue * 10 // Dynamic dot size
+        
+        const x = centerX + Math.cos(angle) * dotRadius
+        const y = centerY + Math.sin(angle) * dotRadius
+        
+        // Draw dot
+        canvasCtx.beginPath()
+        canvasCtx.arc(x, y, dotSize, 0, Math.PI * 2)
+        
+        // Use complementary color
+        const dotHue = (hue + 180) % 360
+        canvasCtx.fillStyle = `hsla(${dotHue}, ${saturation}%, ${brightness}%, ${0.7 + freqValue * 0.3})`
+        canvasCtx.fill()
+      }
+      
+      // Reset shadow for other drawings
+      canvasCtx.shadowBlur = 0
     }
     else if (activeStyle.value === 'geometric') {
       // Geometric pattern style - hexagonal grid
