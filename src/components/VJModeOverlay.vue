@@ -137,6 +137,11 @@ let p5Instance = null
 let waveformDataArray = null
 let frequencyDataArray = null
 
+// Color animation variables
+let colorHue = 0
+let colorDirection = 1
+let lastColorUpdateTime = 0
+
 // Theme colors
 const getThemeColors = (theme) => {
   switch (theme) {
@@ -327,11 +332,32 @@ const initWaveformVisualization = () => {
     canvasCtx.fillStyle = 'rgb(0, 0, 0)'
     canvasCtx.fillRect(0, 0, width, height)
     
-    // Draw waveform with increased line width
+   // Draw waveform with increased line width
     canvasCtx.lineWidth = 5
     
-    // Use bright red color for waveform
-    canvasCtx.strokeStyle = 'rgb(255, 0, 0)'
+    // Animate color based on time and audio intensity
+    const now = performance.now()
+    if (now - lastColorUpdateTime > 50) { // Update color every 50ms
+      // Calculate average intensity from waveform data
+      const sum = waveformDataArray.reduce((acc, val) => acc + Math.abs(val - 128), 0)
+      const avgIntensity = sum / waveformDataArray.length
+      
+      // Adjust color change speed based on audio intensity
+      const speedFactor = Math.max(1, avgIntensity / 20)
+      
+      // Update color hue
+      colorHue = (colorHue + 1 * speedFactor * colorDirection) % 360
+      
+      // Change direction occasionally
+      if (Math.random() < 0.01) {
+        colorDirection *= -1
+      }
+      
+      lastColorUpdateTime = now
+    }
+    
+    // Use HSL color for the waveform with the animated hue
+    canvasCtx.strokeStyle = `hsl(${colorHue}, 100%, 50%)`
     
     canvasCtx.beginPath()
     
@@ -402,15 +428,22 @@ const initFrequencyVisualization = () => {
     const barWidth = (width / frequencyDataArray.length) * 2.5
     let x = 0
     
+    // Use the animated base hue for frequency visualization
+    const baseHue = colorHue
+    
     for (let i = 0; i < frequencyDataArray.length; i++) {
       const barHeight = (frequencyDataArray[i] / 255) * height
       
-      // Use gradient colors based on frequency and theme
+      // Use gradient colors based on frequency, theme, and animated base hue
       const colors = getThemeColors(props.theme)
       const hueRange = colors.hueEnd - colors.hueStart
-      const hue = colors.hueStart + (i / frequencyDataArray.length * hueRange)
+      
+      // Add the base animated hue to create movement in the color spectrum
+      const hue = (baseHue + (i / frequencyDataArray.length * hueRange)) % 360
       const saturation = colors.saturation || 100
-      const brightness = colors.brightness || 50
+      
+      // Make brightness respond to audio intensity
+      const brightness = Math.min(100, 50 + (frequencyDataArray[i] / 255) * 50)
       
       canvasCtx.fillStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, 0.7)`
       canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight)
@@ -458,7 +491,9 @@ const initParticleVisualization = () => {
     update(intensity) {
       this.x += this.speedX * intensity
       this.y += this.speedY * intensity
-      this.hue = (this.hue + 0.5) % 360
+      
+      // Make hue change more dynamic based on global color animation
+      this.hue = (colorHue + this.p.random(-30, 30)) % 360
       
       if (this.x < 0 || this.x > this.p.width || 
           this.y < 0 || this.y > this.p.height) {
@@ -468,7 +503,12 @@ const initParticleVisualization = () => {
     
     draw() {
       this.p.noStroke()
-      this.p.fill(this.hue, 80, 100, 0.7)
+      
+      // Make saturation and brightness respond to intensity
+      const saturation = 80 + this.p.random(-10, 10)
+      const brightness = 80 + this.p.random(-10, 10)
+      
+      this.p.fill(this.hue, saturation, brightness, 0.7)
       this.p.circle(this.x, this.y, this.size)
     }
   }
