@@ -127,7 +127,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'themeChange'])
 
 const vjContainer = ref(null)
 const waveformCanvas = ref(null)
@@ -146,7 +146,7 @@ const layers = ref([
   { id: 'frequency', name: '周波数', active: true }
 ])
 
-// Visualization styles
+// Visualization styles with club-oriented options
 const visualizationStyles = ref([
   { id: 'default', name: 'デフォルト', active: true },
   { id: 'rainbow', name: '虹色グラデーション', active: false },
@@ -159,6 +159,29 @@ const visualizationStyles = ref([
 // Current active style
 const activeStyle = ref('default')
 
+// Available themes for color variations
+const themes = [
+  { id: 'default', name: 'デフォルト' },
+  { id: 'cool', name: 'クール' },
+  { id: 'warm', name: '暖色' },
+  { id: 'forest', name: '森林' },
+  { id: 'sunset', name: '夕焼け' },
+  { id: 'club', name: 'クラブ' },
+  { id: 'neon', name: 'ネオン' }
+]
+
+// Current theme with auto-rotation for club environment
+let currentThemeIndex = 0
+const autoRotateThemes = () => {
+  if (isActive.value) {
+    currentThemeIndex = (currentThemeIndex + 1) % themes.length
+    // Emit theme change event that parent can listen to
+    emit('themeChange', themes[currentThemeIndex].id)
+    // Schedule next rotation
+    setTimeout(autoRotateThemes, 10000) // Change theme every 10 seconds
+  }
+}
+
 // Animation IDs
 let waveformAnimationId = null
 let frequencyAnimationId = null
@@ -168,30 +191,73 @@ let p5Instance = null
 let waveformDataArray = null
 let frequencyDataArray = null
 
-// Theme colors with time-based transitions
+// Enhanced club-style theme colors with dynamic time-based transitions
 const getThemeColors = (theme) => {
-  // Get time-based offset for color cycling
-  const timeOffset = Date.now() * 0.0001 % 360
+  // Get time-based offset for color cycling - faster for club environment
+  const timeOffset = Date.now() * 0.0002 % 360
+  const pulseEffect = Math.sin(Date.now() * 0.001) * 0.5 + 0.5 // Pulsing effect between 0-1
   
   let colors
   switch (theme) {
     case 'cool':
-      colors = { hueStart: 180, hueEnd: 240 }
+      colors = { 
+        hueStart: 180, 
+        hueEnd: 300, // Wider range for more variety
+        saturation: 90 + pulseEffect * 10, 
+        brightness: 80 + pulseEffect * 20 
+      }
       break
     case 'warm':
-      colors = { hueStart: 0, hueEnd: 60 }
+      colors = { 
+        hueStart: 0, 
+        hueEnd: 90, // Extended range
+        saturation: 100, 
+        brightness: 85 + pulseEffect * 15 
+      }
       break
     case 'forest':
-      colors = { hueStart: 90, hueEnd: 150 }
+      colors = { 
+        hueStart: 90, 
+        hueEnd: 180, 
+        saturation: 85 + pulseEffect * 15, 
+        brightness: 75 + pulseEffect * 25 
+      }
       break
     case 'sunset':
-      colors = { hueStart: 0, hueEnd: 60, saturation: 100, brightness: 100 }
+      colors = { 
+        hueStart: 0, 
+        hueEnd: 90, 
+        saturation: 100, 
+        brightness: 90 + pulseEffect * 10 
+      }
+      break
+    case 'club': // New club theme with vibrant neon colors
+      colors = { 
+        hueStart: 270, 
+        hueEnd: 330, 
+        saturation: 100, 
+        brightness: 100 
+      }
+      break
+    case 'neon': // New neon theme
+      colors = { 
+        hueStart: 120, 
+        hueEnd: 200, 
+        saturation: 100, 
+        brightness: 100 
+      }
       break
     default:
-      colors = { hueStart: 0, hueEnd: 360 }
+      // Full spectrum with high saturation and brightness for club environment
+      colors = { 
+        hueStart: 0, 
+        hueEnd: 360, 
+        saturation: 100, 
+        brightness: 90 + pulseEffect * 10 
+      }
   }
   
-  // Apply time-based offset to colors
+  // Apply time-based offset to colors with wider range
   colors.hueStart = (colors.hueStart + timeOffset) % 360
   colors.hueEnd = (colors.hueEnd + timeOffset) % 360
   
@@ -217,6 +283,9 @@ const activate = () => {
     overlay.style.pointerEvents = 'auto'
     console.log('VJModeOverlay: Forced overlay visibility')
   }
+  
+  // Start auto theme rotation for club environment
+  autoRotateThemes()
   
   // Initialize visualizations after DOM update
   setTimeout(() => {
@@ -423,12 +492,16 @@ const initWaveformVisualization = () => {
       canvasCtx.stroke()
     } 
     else if (activeStyle.value === 'rainbow') {
-      // Rainbow gradient style - color changes with sound intensity and time
+      // Enhanced rainbow gradient style for club environment - more vibrant colors
       const sliceWidth = width / waveformDataArray.length
       
-      // Time-based color shift
+      // Time-based color shift with faster cycling for club environment
       const time = Date.now() * 0.001
-      const timeHueShift = (time * 10) % 360
+      const timeHueShift = (time * 15) % 360 // Faster color cycling
+      const pulseEffect = Math.sin(time * 2) * 0.5 + 0.5 // Pulsing effect
+      
+      // Line width based on audio intensity for more dynamic visuals
+      canvasCtx.lineWidth = 3 + (audioIntensity / 255) * 5
       
       for (let i = 0; i < waveformDataArray.length - 1; i++) {
         const v1 = waveformDataArray[i] / 128.0
@@ -443,10 +516,14 @@ const initWaveformVisualization = () => {
         const hueOffset = (audioIntensity / 255) * 360
         const hue = (colors.hueStart + timeHueShift + hueOffset + i * 0.1) % 360
         
+        // More vibrant colors with higher saturation and brightness
+        const saturation = colors.saturation || (90 + pulseEffect * 10)
+        const brightness = colors.brightness || (80 + pulseEffect * 20)
+        
         canvasCtx.beginPath()
         canvasCtx.moveTo(x1, y1)
         canvasCtx.lineTo(x2, y2)
-        canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+        canvasCtx.strokeStyle = `hsl(${hue}, ${saturation}%, ${brightness}%)`
         canvasCtx.stroke()
       }
     }
@@ -747,21 +824,31 @@ const initFrequencyVisualization = () => {
     canvasCtx.fillStyle = 'rgba(0, 0, 0, 0.2)'
     canvasCtx.fillRect(0, 0, width, height)
     
-    // Draw frequency bars
+    // Draw enhanced frequency bars for club environment
     const barWidth = (width / frequencyDataArray.length) * 2.5
     let x = 0
+    
+    // Time-based effects
+    const time = Date.now() * 0.001
+    const pulseEffect = Math.sin(time * 2) * 0.5 + 0.5 // Pulsing effect
+    const timeHueShift = (time * 20) % 360 // Fast color cycling
     
     for (let i = 0; i < frequencyDataArray.length; i++) {
       const barHeight = (frequencyDataArray[i] / 255) * height
       
-      // Use gradient colors based on frequency and theme
+      // Use gradient colors based on frequency and theme with time-based shifts
       const colors = getThemeColors(props.theme)
       const hueRange = colors.hueEnd - colors.hueStart
-      const hue = colors.hueStart + (i / frequencyDataArray.length * hueRange)
+      const hue = (colors.hueStart + timeHueShift + (i / frequencyDataArray.length * hueRange)) % 360
       const saturation = colors.saturation || 100
-      const brightness = colors.brightness || 50
+      const brightness = colors.brightness || (70 + pulseEffect * 30) // Pulsing brightness
       
-      canvasCtx.fillStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, 0.7)`
+      // Add glow effect for club environment
+      canvasCtx.shadowColor = `hsl(${hue}, 100%, 70%)`
+      canvasCtx.shadowBlur = 10 * pulseEffect
+      
+      // More vibrant colors with higher opacity
+      canvasCtx.fillStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, 0.8)`
       canvasCtx.fillRect(x, height - barHeight, barWidth, barHeight)
       
       x += barWidth + 1
@@ -769,6 +856,9 @@ const initFrequencyVisualization = () => {
       // Only draw a portion of the frequencies to fit in the canvas
       if (x > width) break
     }
+    
+    // Reset shadow for other drawings
+    canvasCtx.shadowBlur = 0
     
     frequencyAnimationId = requestAnimationFrame(drawFrequency)
   }
@@ -872,17 +962,21 @@ const initParticleVisualization = () => {
       const scale = this.p.map(this.z, -100, 100, 0.5, 1.5)
       const scaledSize = this.size * scale
       
-      // Draw glow effect
+      // Time-based effects for club environment
+      const time = this.p.millis() * 0.001
+      const pulseEffect = Math.sin(time * 3) * 0.5 + 0.5 // Faster pulsing
+      
+      // Enhanced glow effect with more layers for club environment
       this.p.noStroke()
-      for (let i = 0; i < 3; i++) {
-        const alpha = this.p.map(i, 0, 3, 0.7, 0.1)
-        const glowSize = scaledSize + (i * this.glowSize * scale)
-        this.p.fill(this.hue, 80, this.brightness, alpha)
+      for (let i = 0; i < 5; i++) { // More glow layers
+        const alpha = this.p.map(i, 0, 5, 0.9, 0.1) // Higher initial opacity
+        const glowSize = scaledSize + (i * (this.glowSize + pulseEffect * 2) * scale) // Pulsing glow
+        this.p.fill(this.hue, 100, this.brightness, alpha) // Full saturation
         this.p.circle(this.x, this.y, glowSize)
       }
       
-      // Draw main particle
-      this.p.fill(this.hue, 80, this.brightness, 0.9)
+      // Draw main particle with higher brightness
+      this.p.fill(this.hue, 100, this.brightness + pulseEffect * 10, 1.0) // Full opacity
       this.p.circle(this.x, this.y, scaledSize)
     }
   }
