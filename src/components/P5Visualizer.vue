@@ -35,8 +35,31 @@ const props = defineProps({
       return value && typeof value.getByteFrequencyData === 'function' && 
              typeof value.frequencyBinCount === 'number'
     }
+  },
+  theme: {
+    type: String,
+    default: 'default'
+  },
+  style: {
+    type: String,
+    default: 'default'
   }
 })
+
+const getThemeColors = (theme) => {
+  switch (theme) {
+    case 'cool':
+      return { hueStart: 180, hueEnd: 240 }
+    case 'warm':
+      return { hueStart: 0, hueEnd: 60 }
+    case 'forest':
+      return { hueStart: 90, hueEnd: 150 }
+    case 'sunset':
+      return { hueStart: 0, hueEnd: 60, saturation: 100, brightness: 100 }
+    default:
+      return { hueStart: 0, hueEnd: 360 }
+  }
+}
 
 const canvasContainer = ref(null)
 const isFullscreen = ref(false)
@@ -57,10 +80,35 @@ class Particle {
     this.size = this.p.random(2, 4)
     this.speedX = this.p.random(-1, 1)
     this.speedY = this.p.random(-1, 1)
-    this.hue = this.p.random(360)
+    
+    const colors = getThemeColors(props.theme)
+    this.hue = this.p.random(colors.hueStart, colors.hueEnd)
+    
+    // Add properties for different styles
+    this.angle = this.p.random(this.p.TWO_PI)
+    this.radius = this.p.random(20, 100)
+    this.rotationSpeed = this.p.random(0.01, 0.05)
+    this.sides = Math.floor(this.p.random(3, 7)) // For geometric style
   }
 
   update(intensity) {
+    // Different update behavior based on style
+    switch(props.style) {
+      case 'orbital':
+        this.updateOrbital(intensity)
+        break
+      case 'geometric':
+        this.updateGeometric(intensity)
+        break
+      case 'flow':
+        this.updateFlow(intensity)
+        break
+      default:
+        this.updateDefault(intensity)
+    }
+  }
+  
+  updateDefault(intensity) {
     this.x += this.speedX * intensity
     this.y += this.speedY * intensity
     this.hue = (this.hue + 0.5) % 360
@@ -70,11 +118,97 @@ class Particle {
       this.reset()
     }
   }
+  
+  updateOrbital(intensity) {
+    this.angle += this.rotationSpeed * intensity
+    this.radius += this.p.sin(this.angle * 0.1) * 0.5
+    this.x = this.p.width/2 + Math.cos(this.angle) * this.radius
+    this.y = this.p.height/2 + Math.sin(this.angle) * this.radius
+    this.hue = (this.hue + 0.5) % 360
+    
+    if (this.radius < 0 || this.radius > Math.max(this.p.width, this.p.height)) {
+      this.reset()
+    }
+  }
+  
+  updateGeometric(intensity) {
+    this.x += this.speedX * intensity * Math.cos(this.angle)
+    this.y += this.speedY * intensity * Math.sin(this.angle)
+    this.angle += 0.1 * intensity
+    this.hue = (this.hue + 0.5) % 360
+    
+    if (this.x < 0 || this.x > this.p.width || 
+        this.y < 0 || this.y > this.p.height) {
+      this.reset()
+    }
+  }
+  
+  updateFlow(intensity) {
+    const noiseScale = 0.01
+    const noiseVal = this.p.noise(this.x * noiseScale, this.y * noiseScale)
+    const angle = noiseVal * this.p.TWO_PI * 4
+    
+    this.x += Math.cos(angle) * intensity
+    this.y += Math.sin(angle) * intensity
+    this.hue = (this.hue + 0.5) % 360
+    
+    if (this.x < 0 || this.x > this.p.width || 
+        this.y < 0 || this.y > this.p.height) {
+      this.reset()
+    }
+  }
 
   draw() {
+    // Different drawing behavior based on style
+    switch(props.style) {
+      case 'orbital':
+        this.drawOrbital()
+        break
+      case 'geometric':
+        this.drawGeometric()
+        break
+      case 'flow':
+        this.drawFlow()
+        break
+      default:
+        this.drawDefault()
+    }
+  }
+  
+  drawDefault() {
     this.p.noStroke()
     this.p.fill(this.hue, 80, 100, 0.7)
     this.p.circle(this.x, this.y, this.size)
+  }
+  
+  drawOrbital() {
+    this.p.noStroke()
+    this.p.fill(this.hue, 80, 100, 0.7)
+    this.p.circle(this.x, this.y, this.size * 1.5)
+  }
+  
+  drawGeometric() {
+    this.p.noStroke()
+    this.p.fill(this.hue, 80, 100, 0.7)
+    this.p.push()
+    this.p.translate(this.x, this.y)
+    this.p.rotate(this.angle)
+    this.p.beginShape()
+    for (let i = 0; i < this.sides; i++) {
+      const angle = this.p.map(i, 0, this.sides, 0, this.p.TWO_PI)
+      const sx = Math.cos(angle) * this.size * 2
+      const sy = Math.sin(angle) * this.size * 2
+      this.p.vertex(sx, sy)
+    }
+    this.p.endShape(this.p.CLOSE)
+    this.p.pop()
+  }
+  
+  drawFlow() {
+    this.p.noFill()
+    this.p.stroke(this.hue, 80, 100, 0.7)
+    this.p.strokeWeight(this.size * 0.5)
+    this.p.line(this.x, this.y, this.x + this.speedX * 5, this.y + this.speedY * 5)
   }
 }
 
