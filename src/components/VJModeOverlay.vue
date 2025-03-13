@@ -152,6 +152,7 @@ const visualizationStyles = ref([
   { id: 'rainbow', name: '虹色グラデーション', active: false },
   { id: 'circular', name: '円形波形', active: false },
   { id: 'geometric', name: '幾何学パターン', active: false },
+  { id: 'kaleidoscope', name: '万華鏡', active: false },
   { id: 'particles3d', name: 'パーティクルシステム', active: false },
   { id: 'wireframe3d', name: '3Dワイヤーフレーム', active: false }
 ])
@@ -638,6 +639,169 @@ const initWaveformVisualization = () => {
       
       // Reset shadow for other drawings
       canvasCtx.shadowBlur = 0
+    }
+    else if (activeStyle.value === 'kaleidoscope') {
+      // 万華鏡パターンの実装
+      const centerX = width / 2
+      const centerY = height / 2
+      
+      // オーディオデータを取得
+      const frequencyData = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(frequencyData)
+      const audioIntensity = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length / 255.0
+      
+      // 時間ベースの効果
+      const time = Date.now() * 0.001
+      const rotationSpeed = 0.1 + audioIntensity * 0.2
+      const rotation = time * rotationSpeed
+      const pulseEffect = Math.sin(time * 2) * 0.5 + 0.5
+      
+      // 万華鏡の設定
+      const numReflections = 12 // 反射の数
+      const numLayers = 5 // レイヤーの数
+      const maxRadius = Math.min(width, height) * 0.45
+      
+      // グローエフェクト
+      canvasCtx.shadowBlur = 15 * audioIntensity
+      canvasCtx.shadowColor = `hsla(${(time * 20) % 360}, 100%, 70%, 0.8)`
+      
+      // 各レイヤーを描画
+      for (let layer = 0; layer < numLayers; layer++) {
+        const layerRadius = maxRadius * (0.3 + (layer / numLayers) * 0.7)
+        const layerRotation = rotation + (layer * Math.PI / numLayers)
+        const layerSegments = 6 + layer * 2 // レイヤーごとにセグメント数を増やす
+        
+        // 各反射セクションを描画
+        for (let r = 0; r < numReflections; r++) {
+          const angle = (r / numReflections) * Math.PI * 2 + layerRotation
+          
+          // 各セグメントを描画
+          for (let s = 0; s < layerSegments; s++) {
+            // 周波数データからセグメントの大きさを計算
+            const freqIndex = Math.floor((r * layerSegments + s) % frequencyData.length)
+            const freqValue = frequencyData[freqIndex] / 255.0
+            
+            // セグメントの頂点を計算
+            const segmentAngle = (s / layerSegments) * Math.PI * 2 / numReflections
+            const nextSegmentAngle = ((s + 1) / layerSegments) * Math.PI * 2 / numReflections
+            
+            const innerRadius = layerRadius * (0.5 + freqValue * 0.2)
+            const outerRadius = layerRadius * (0.7 + freqValue * 0.3)
+            
+            const x1 = centerX + Math.cos(angle + segmentAngle) * innerRadius
+            const y1 = centerY + Math.sin(angle + segmentAngle) * innerRadius
+            const x2 = centerX + Math.cos(angle + nextSegmentAngle) * innerRadius
+            const y2 = centerY + Math.sin(angle + nextSegmentAngle) * innerRadius
+            const x3 = centerX + Math.cos(angle + nextSegmentAngle) * outerRadius
+            const y3 = centerY + Math.sin(angle + nextSegmentAngle) * outerRadius
+            const x4 = centerX + Math.cos(angle + segmentAngle) * outerRadius
+            const y4 = centerY + Math.sin(angle + segmentAngle) * outerRadius
+            
+            // セグメントを描画
+            canvasCtx.beginPath()
+            canvasCtx.moveTo(x1, y1)
+            canvasCtx.lineTo(x2, y2)
+            canvasCtx.lineTo(x3, y3)
+            canvasCtx.lineTo(x4, y4)
+            canvasCtx.closePath()
+            
+            // 色を設定
+            const colors = getThemeColors(props.theme)
+            const hueOffset = (r / numReflections) * 360
+            const hue = (colors.hueStart + (time * 15) % 360 + hueOffset + layer * 30) % 360
+            const saturation = colors.saturation || (90 + pulseEffect * 10)
+            const brightness = colors.brightness || (70 + freqValue * 30)
+            const opacity = 0.7 + freqValue * 0.3
+            
+            canvasCtx.fillStyle = `hsla(${hue}, ${saturation}%, ${brightness}%, ${opacity})`
+            canvasCtx.fill()
+            
+            // 輪郭を描画
+            canvasCtx.strokeStyle = `hsla(${(hue + 180) % 360}, ${saturation}%, ${brightness + 10}%, ${opacity})`
+            canvasCtx.lineWidth = 1 + audioIntensity * 2
+            canvasCtx.stroke()
+          }
+        }
+      }
+      
+      // 中央の円を描画
+      canvasCtx.beginPath()
+      canvasCtx.arc(centerX, centerY, maxRadius * 0.2 * (0.8 + audioIntensity * 0.4), 0, Math.PI * 2)
+      
+      // 中央の円のグラデーション
+      const gradient = canvasCtx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, maxRadius * 0.2 * (0.8 + audioIntensity * 0.4)
+      )
+      
+      const centerHue = (time * 30) % 360
+      gradient.addColorStop(0, `hsla(${centerHue}, 100%, 80%, 0.9)`)
+      gradient.addColorStop(0.5, `hsla(${(centerHue + 60) % 360}, 100%, 70%, 0.7)`)
+      gradient.addColorStop(1, `hsla(${(centerHue + 120) % 360}, 100%, 60%, 0.5)`)
+      
+      canvasCtx.fillStyle = gradient
+      canvasCtx.fill()
+      
+      // 放射状の線を描画
+      for (let i = 0; i < numReflections * 2; i++) {
+        const lineAngle = (i / (numReflections * 2)) * Math.PI * 2 + rotation
+        const lineLength = maxRadius * (0.3 + audioIntensity * 0.7)
+        
+        canvasCtx.beginPath()
+        canvasCtx.moveTo(centerX, centerY)
+        canvasCtx.lineTo(
+          centerX + Math.cos(lineAngle) * lineLength,
+          centerY + Math.sin(lineAngle) * lineLength
+        )
+        
+        const lineHue = (centerHue + i * (360 / (numReflections * 2))) % 360
+        canvasCtx.strokeStyle = `hsla(${lineHue}, 100%, 80%, ${0.3 + audioIntensity * 0.4})`
+        canvasCtx.lineWidth = 2 + audioIntensity * 3
+        canvasCtx.stroke()
+      }
+      
+      // 影の効果をリセット
+      canvasCtx.shadowBlur = 0
+      
+      // 装飾的な円形パターンを追加
+      const numCircles = 8
+      for (let c = 0; c < numCircles; c++) {
+        const circleRadius = maxRadius * (0.3 + (c / numCircles) * 0.6)
+        const circleRotation = rotation * (c % 2 === 0 ? 1 : -1) // 交互に回転方向を変える
+        
+        canvasCtx.beginPath()
+        
+        // 波線の円を描画
+        const circleSegments = 60
+        const waveAmplitude = maxRadius * 0.05 * (0.5 + audioIntensity * 0.5)
+        const waveFrequency = 8 + c * 2
+        
+        for (let i = 0; i <= circleSegments; i++) {
+          const angle = (i / circleSegments) * Math.PI * 2 + circleRotation
+          const freqIndex = Math.floor((i / circleSegments) * frequencyData.length)
+          const freqValue = frequencyData[freqIndex] / 255.0
+          
+          const waveOffset = Math.sin(angle * waveFrequency) * waveAmplitude * (0.5 + freqValue * 0.5)
+          const radius = circleRadius + waveOffset
+          
+          const x = centerX + Math.cos(angle) * radius
+          const y = centerY + Math.sin(angle) * radius
+          
+          if (i === 0) {
+            canvasCtx.moveTo(x, y)
+          } else {
+            canvasCtx.lineTo(x, y)
+          }
+        }
+        
+        canvasCtx.closePath()
+        
+        // 色を設定
+        const circleHue = (centerHue + c * 30) % 360
+        canvasCtx.strokeStyle = `hsla(${circleHue}, 100%, 80%, ${0.4 + (c / numCircles) * 0.4})`
+        canvasCtx.lineWidth = 1 + (numCircles - c) * 0.5
+        canvasCtx.stroke()
+      }
     }
     else if (activeStyle.value === 'geometric') {
       // Geometric pattern style - hexagonal grid
