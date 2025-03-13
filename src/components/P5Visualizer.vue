@@ -35,8 +35,27 @@ const props = defineProps({
       return value && typeof value.getByteFrequencyData === 'function' && 
              typeof value.frequencyBinCount === 'number'
     }
+  },
+  theme: {
+    type: String,
+    default: 'default'
   }
 })
+
+const getThemeColors = (theme) => {
+  switch (theme) {
+    case 'cool':
+      return { hueStart: 180, hueEnd: 240 }
+    case 'warm':
+      return { hueStart: 0, hueEnd: 60 }
+    case 'forest':
+      return { hueStart: 90, hueEnd: 150 }
+    case 'sunset':
+      return { hueStart: 0, hueEnd: 60, saturation: 100, brightness: 100 }
+    default:
+      return { hueStart: 0, hueEnd: 360 }
+  }
+}
 
 const canvasContainer = ref(null)
 const isFullscreen = ref(false)
@@ -57,7 +76,9 @@ class Particle {
     this.size = this.p.random(2, 4)
     this.speedX = this.p.random(-1, 1)
     this.speedY = this.p.random(-1, 1)
-    this.hue = this.p.random(360)
+    
+    const colors = getThemeColors(props.theme)
+    this.hue = this.p.random(colors.hueStart, colors.hueEnd)
   }
 
   update(intensity) {
