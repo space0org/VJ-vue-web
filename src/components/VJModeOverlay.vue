@@ -168,20 +168,34 @@ let p5Instance = null
 let waveformDataArray = null
 let frequencyDataArray = null
 
-// Theme colors
+// Theme colors with time-based transitions
 const getThemeColors = (theme) => {
+  // Get time-based offset for color cycling
+  const timeOffset = Date.now() * 0.0001 % 360
+  
+  let colors
   switch (theme) {
     case 'cool':
-      return { hueStart: 180, hueEnd: 240 }
+      colors = { hueStart: 180, hueEnd: 240 }
+      break
     case 'warm':
-      return { hueStart: 0, hueEnd: 60 }
+      colors = { hueStart: 0, hueEnd: 60 }
+      break
     case 'forest':
-      return { hueStart: 90, hueEnd: 150 }
+      colors = { hueStart: 90, hueEnd: 150 }
+      break
     case 'sunset':
-      return { hueStart: 0, hueEnd: 60, saturation: 100, brightness: 100 }
+      colors = { hueStart: 0, hueEnd: 60, saturation: 100, brightness: 100 }
+      break
     default:
-      return { hueStart: 0, hueEnd: 360 }
+      colors = { hueStart: 0, hueEnd: 360 }
   }
+  
+  // Apply time-based offset to colors
+  colors.hueStart = (colors.hueStart + timeOffset) % 360
+  colors.hueEnd = (colors.hueEnd + timeOffset) % 360
+  
+  return colors
 }
 
 // Activate VJ mode
@@ -409,8 +423,12 @@ const initWaveformVisualization = () => {
       canvasCtx.stroke()
     } 
     else if (activeStyle.value === 'rainbow') {
-      // Rainbow gradient style - color changes with sound intensity
+      // Rainbow gradient style - color changes with sound intensity and time
       const sliceWidth = width / waveformDataArray.length
+      
+      // Time-based color shift
+      const time = Date.now() * 0.001
+      const timeHueShift = (time * 10) % 360
       
       for (let i = 0; i < waveformDataArray.length - 1; i++) {
         const v1 = waveformDataArray[i] / 128.0
@@ -421,9 +439,9 @@ const initWaveformVisualization = () => {
         const x2 = (i + 1) * sliceWidth
         const y2 = v2 * height / 2
         
-        // Map audio intensity to hue
+        // Map audio intensity to hue with time-based shift
         const hueOffset = (audioIntensity / 255) * 360
-        const hue = (colors.hueStart + hueOffset + i * 0.1) % 360
+        const hue = (colors.hueStart + timeHueShift + hueOffset + i * 0.1) % 360
         
         canvasCtx.beginPath()
         canvasCtx.moveTo(x1, y1)
@@ -448,13 +466,17 @@ const initWaveformVisualization = () => {
       const maxRadius = Math.min(width, height) / 2
       const numCircles = 20
       
+      // Time-based color rotation
+      const time = Date.now() * 0.001
+      const timeHueShift = (time * 15) % 360
+      
       for (let i = 0; i < numCircles; i++) {
         const ratio = i / numCircles
         const radius = ratio * maxRadius * (0.5 + avgValue * 0.5)
         
-        // Use theme colors with varying opacity
+        // Use theme colors with time-based shift and varying opacity
         const colors = getThemeColors(props.theme)
-        const hue = (colors.hueStart + (i * 10)) % 360
+        const hue = (colors.hueStart + timeHueShift + (i * 10)) % 360
         const opacity = 1 - ratio
         
         canvasCtx.beginPath()
@@ -529,9 +551,11 @@ const initWaveformVisualization = () => {
           }
           canvasCtx.closePath()
           
-          // Use theme colors
+          // Use theme colors with time-based shift
           const colors = getThemeColors(props.theme)
-          const hue = (colors.hueStart + (row * col) % 60) % 360
+          const time = Date.now() * 0.001
+          const timeHueShift = (time * 20) % 360
+          const hue = (colors.hueStart + timeHueShift + (row * col) % 60) % 360
           canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
           canvasCtx.stroke()
         }
@@ -605,9 +629,11 @@ const initWaveformVisualization = () => {
             canvasCtx.moveTo(centerX + px1, centerY + py1)
             canvasCtx.lineTo(centerX + px2, centerY + py2)
             
-            // Use theme colors
+            // Use theme colors with time-based shift
             const colors = getThemeColors(props.theme)
-            const hue = (colors.hueStart + (i * 5)) % 360
+            const time = Date.now() * 0.001
+            const timeHueShift = (time * 25) % 360
+            const hue = (colors.hueStart + timeHueShift + (i * 5)) % 360
             const brightness = 70 + (frequencyData[index1] / 255.0) * 30
             
             canvasCtx.strokeStyle = `hsl(${hue}, 100%, ${brightness}%)`
@@ -637,9 +663,11 @@ const initWaveformVisualization = () => {
             canvasCtx.moveTo(centerX + px1, centerY + py1)
             canvasCtx.lineTo(centerX + px2, centerY + py2)
             
-            // Use theme colors with varying hue
+            // Use theme colors with time-based shift and varying hue
             const colors = getThemeColors(props.theme)
-            const hue = (colors.hueStart + (j * 5)) % 360
+            const time = Date.now() * 0.001
+            const timeHueShift = (time * 25) % 360
+            const hue = (colors.hueStart + timeHueShift + (j * 5)) % 360
             const brightness = 70 + (frequencyData[index1] / 255.0) * 30
             
             canvasCtx.strokeStyle = `hsl(${hue}, 100%, ${brightness}%)`
@@ -779,7 +807,11 @@ const initParticleVisualization = () => {
     update(intensity) {
       this.x += this.speedX * intensity
       this.y += this.speedY * intensity
-      this.hue = (this.hue + 0.5) % 360
+      
+      // Time-based color shift
+      const time = Date.now() * 0.001
+      const timeHueShift = (time * 5) % 360
+      this.hue = (this.hue + timeHueShift * 0.01 + 0.5) % 360
       
       if (this.x < 0 || this.x > this.p.width || 
           this.y < 0 || this.y > this.p.height) {
@@ -820,8 +852,10 @@ const initParticleVisualization = () => {
       this.y += this.speedY * intensity
       this.z += this.speedZ * intensity
       
-      // Frequency-specific color and size changes
-      this.hue = (this.hue + 0.5) % 360
+      // Time-based color shift with frequency-specific changes
+      const time = Date.now() * 0.001
+      const timeHueShift = (time * 10) % 360
+      this.hue = (this.hue + timeHueShift * 0.01 + 0.5) % 360
       this.size = this.originalSize + (frequencyBin / 255) * 5
       this.brightness = 70 + (frequencyBin / 255) * 30
       
