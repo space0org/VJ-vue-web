@@ -489,6 +489,54 @@ const initWaveformVisualization = () => {
       canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
       canvasCtx.stroke()
     }
+    else if (activeStyle.value === 'geometric') {
+      // Geometric pattern style - hexagonal grid
+      const hexSize = 30
+      const rows = Math.ceil(height / (hexSize * 1.5))
+      const cols = Math.ceil(width / (hexSize * Math.sqrt(3)))
+      
+      // Get audio intensity for size modulation
+      const frequencyData = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(frequencyData)
+      const audioIntensity = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length
+      const sizeModifier = 0.5 + (audioIntensity / 255) * 1.5
+      
+      // Draw hexagonal grid
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const offsetX = (row % 2) * (hexSize * Math.sqrt(3) / 2)
+          const x = col * hexSize * Math.sqrt(3) + offsetX
+          const y = row * hexSize * 1.5
+          
+          // Sample waveform data for this position
+          const sampleIndex = Math.floor((col / cols) * waveformDataArray.length)
+          const value = waveformDataArray[sampleIndex] / 128.0
+          
+          // Calculate hexagon points
+          const points = []
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i
+            const hx = x + Math.cos(angle) * hexSize * sizeModifier * value
+            const hy = y + Math.sin(angle) * hexSize * sizeModifier * value
+            points.push({ x: hx, y: hy })
+          }
+          
+          // Draw hexagon
+          canvasCtx.beginPath()
+          canvasCtx.moveTo(points[0].x, points[0].y)
+          for (let i = 1; i < 6; i++) {
+            canvasCtx.lineTo(points[i].x, points[i].y)
+          }
+          canvasCtx.closePath()
+          
+          // Use theme colors
+          const colors = getThemeColors(props.theme)
+          const hue = (colors.hueStart + (row * col) % 60) % 360
+          canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+          canvasCtx.stroke()
+        }
+      }
+    }
     else {
       // Default fallback for other styles not yet implemented
       const hue = colors.hueStart
