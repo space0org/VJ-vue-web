@@ -537,6 +537,117 @@ const initWaveformVisualization = () => {
         }
       }
     }
+    else if (activeStyle.value === 'wireframe3d') {
+      // 3D wireframe visualization
+      const centerX = width / 2
+      const centerY = height / 2
+      
+      // Get audio data for 3D surface
+      const frequencyData = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(frequencyData)
+      
+      // Grid parameters
+      const gridSize = 20
+      const gridWidth = Math.min(width, height) * 0.8
+      const gridHeight = gridWidth
+      const cellSize = gridWidth / gridSize
+      
+      // Rotation based on time
+      const time = Date.now() * 0.001
+      const rotationX = Math.sin(time * 0.3) * 0.3
+      const rotationY = time * 0.2
+      
+      // Helper function for 3D to 2D projection
+      const project3Dto2D = (x, y, z, rotX, rotY) => {
+        // Apply rotation around X axis
+        const cosX = Math.cos(rotX)
+        const sinX = Math.sin(rotX)
+        const y1 = y * cosX - z * sinX
+        const z1 = y * sinX + z * cosX
+        
+        // Apply rotation around Y axis
+        const cosY = Math.cos(rotY)
+        const sinY = Math.sin(rotY)
+        const x2 = x * cosY - z1 * sinY
+        const z2 = x * sinY + z1 * cosY
+        
+        // Apply perspective
+        const scale = 1000 / (1000 + z2)
+        const px = x2 * scale
+        const py = y1 * scale
+        
+        return [px, py]
+      }
+      
+      // Draw 3D grid
+      for (let i = 0; i <= gridSize; i++) {
+        // Draw horizontal lines
+        for (let j = 0; j <= gridSize; j++) {
+          if (j < gridSize) {
+            const x1 = i - gridSize / 2
+            const z1 = j - gridSize / 2
+            const x2 = i - gridSize / 2
+            const z2 = j + 1 - gridSize / 2
+            
+            // Get height from frequency data
+            const index1 = Math.floor((i * gridSize + j) / (gridSize * gridSize) * frequencyData.length)
+            const index2 = Math.floor((i * gridSize + j + 1) / (gridSize * gridSize) * frequencyData.length)
+            
+            const y1 = -(frequencyData[index1] / 255.0) * gridHeight * 0.3
+            const y2 = -(frequencyData[index2] / 255.0) * gridHeight * 0.3
+            
+            // 3D to 2D projection with rotation
+            const [px1, py1] = project3Dto2D(x1 * cellSize, y1, z1 * cellSize, rotationX, rotationY)
+            const [px2, py2] = project3Dto2D(x2 * cellSize, y2, z2 * cellSize, rotationX, rotationY)
+            
+            // Draw line
+            canvasCtx.beginPath()
+            canvasCtx.moveTo(centerX + px1, centerY + py1)
+            canvasCtx.lineTo(centerX + px2, centerY + py2)
+            
+            // Use theme colors
+            const colors = getThemeColors(props.theme)
+            const hue = (colors.hueStart + (i * 5)) % 360
+            const brightness = 70 + (frequencyData[index1] / 255.0) * 30
+            
+            canvasCtx.strokeStyle = `hsl(${hue}, 100%, ${brightness}%)`
+            canvasCtx.stroke()
+          }
+          
+          // Draw vertical lines
+          if (i < gridSize) {
+            const x1 = i - gridSize / 2
+            const z1 = j - gridSize / 2
+            const x2 = i + 1 - gridSize / 2
+            const z2 = j - gridSize / 2
+            
+            // Get height from frequency data
+            const index1 = Math.floor((i * gridSize + j) / (gridSize * gridSize) * frequencyData.length)
+            const index2 = Math.floor(((i + 1) * gridSize + j) / (gridSize * gridSize) * frequencyData.length)
+            
+            const y1 = -(frequencyData[index1] / 255.0) * gridHeight * 0.3
+            const y2 = -(frequencyData[index2] / 255.0) * gridHeight * 0.3
+            
+            // 3D to 2D projection with rotation
+            const [px1, py1] = project3Dto2D(x1 * cellSize, y1, z1 * cellSize, rotationX, rotationY)
+            const [px2, py2] = project3Dto2D(x2 * cellSize, y2, z2 * cellSize, rotationX, rotationY)
+            
+            // Draw line
+            canvasCtx.beginPath()
+            canvasCtx.moveTo(centerX + px1, centerY + py1)
+            canvasCtx.lineTo(centerX + px2, centerY + py2)
+            
+            // Use theme colors with varying hue
+            const colors = getThemeColors(props.theme)
+            const hue = (colors.hueStart + (j * 5)) % 360
+            const brightness = 70 + (frequencyData[index1] / 255.0) * 30
+            
+            canvasCtx.strokeStyle = `hsl(${hue}, 100%, ${brightness}%)`
+            canvasCtx.stroke()
+          }
+        }
+      }
+    }
     else {
       // Default fallback for other styles not yet implemented
       const hue = colors.hueStart
