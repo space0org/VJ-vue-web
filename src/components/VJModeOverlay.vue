@@ -139,8 +139,8 @@ let frequencyDataArray = null
 
 // Color animation variables
 let colorHue = 0
-let colorDirection = 1
 let lastColorUpdateTime = 0
+let rainbowSpeed = 0.5 // 虹色の変化速度（基本値）
 
 // Theme colors
 const getThemeColors = (theme) => {
@@ -345,19 +345,17 @@ const initWaveformVisualization = () => {
       // Adjust color change speed based on audio intensity
       const speedFactor = Math.max(1, avgIntensity / 20)
       
-      // Update color hue
-      colorHue = (colorHue + 1 * speedFactor * colorDirection) % 360
-      
-      // Change direction occasionally
-      if (Math.random() < 0.01) {
-        colorDirection *= -1
-      }
+      // Update color hue - always increment for continuous rainbow effect
+      colorHue = (colorHue + rainbowSpeed * speedFactor) % 360
       
       lastColorUpdateTime = now
     }
     
     // Use HSL color for the waveform with the animated hue
-    canvasCtx.strokeStyle = `hsl(${colorHue}, 100%, 50%)`
+    // Adjust saturation and brightness based on audio intensity for more dynamic effect
+    const saturation = 100
+    const brightness = Math.min(100, 50 + avgIntensity / 2)
+    canvasCtx.strokeStyle = `hsl(${colorHue}, ${saturation}%, ${brightness}%)`
     
     canvasCtx.beginPath()
     
@@ -434,13 +432,10 @@ const initFrequencyVisualization = () => {
     for (let i = 0; i < frequencyDataArray.length; i++) {
       const barHeight = (frequencyDataArray[i] / 255) * height
       
-      // Use gradient colors based on frequency, theme, and animated base hue
-      const colors = getThemeColors(props.theme)
-      const hueRange = colors.hueEnd - colors.hueStart
-      
-      // Add the base animated hue to create movement in the color spectrum
-      const hue = (baseHue + (i / frequencyDataArray.length * hueRange)) % 360
-      const saturation = colors.saturation || 100
+      // Create rainbow spectrum effect by distributing hues across bars
+      // This creates a continuous rainbow that also moves with the global colorHue
+      const hue = (baseHue + (i / frequencyDataArray.length * 360)) % 360
+      const saturation = 100
       
       // Make brightness respond to audio intensity
       const brightness = Math.min(100, 50 + (frequencyDataArray[i] / 255) * 50)
@@ -492,8 +487,9 @@ const initParticleVisualization = () => {
       this.x += this.speedX * intensity
       this.y += this.speedY * intensity
       
-      // Make hue change more dynamic based on global color animation
-      this.hue = (colorHue + this.p.random(-30, 30)) % 360
+      // Follow global colorHue with slight variation for visual interest
+      // Smaller random range (-15, 15) for more consistent rainbow effect
+      this.hue = (colorHue + this.p.random(-15, 15)) % 360
       
       if (this.x < 0 || this.x > this.p.width || 
           this.y < 0 || this.y > this.p.height) {
@@ -505,8 +501,9 @@ const initParticleVisualization = () => {
       this.p.noStroke()
       
       // Make saturation and brightness respond to intensity
-      const saturation = 80 + this.p.random(-10, 10)
-      const brightness = 80 + this.p.random(-10, 10)
+      // Higher base saturation (90) for more vibrant rainbow colors
+      const saturation = 90 + this.p.random(-10, 10)
+      const brightness = 85 + this.p.random(-10, 10)
       
       this.p.fill(this.hue, saturation, brightness, 0.7)
       this.p.circle(this.x, this.y, this.size)
