@@ -647,7 +647,7 @@ const initParticleVisualization = () => {
     return
   }
   
-  // Particle class
+  // Basic Particle class
   class Particle {
     constructor(p) {
       this.p = p
@@ -683,17 +683,86 @@ const initParticleVisualization = () => {
     }
   }
   
+  // Enhanced Particle class for 3D particle system
+  class EnhancedParticle extends Particle {
+    constructor(p) {
+      super(p)
+      this.z = this.p.random(-100, 100)
+      this.speedZ = this.p.random(-0.5, 0.5)
+      this.originalSize = this.size
+      this.brightness = this.p.random(70, 100)
+      this.glowSize = this.p.random(1, 3)
+    }
+    
+    reset() {
+      super.reset()
+      this.z = this.p.random(-100, 100)
+      this.speedZ = this.p.random(-0.5, 0.5)
+      this.originalSize = this.size
+      this.brightness = this.p.random(70, 100)
+      this.glowSize = this.p.random(1, 3)
+    }
+    
+    update(intensity, frequencyBin) {
+      // Update position with 3D movement
+      this.x += this.speedX * intensity
+      this.y += this.speedY * intensity
+      this.z += this.speedZ * intensity
+      
+      // Frequency-specific color and size changes
+      this.hue = (this.hue + 0.5) % 360
+      this.size = this.originalSize + (frequencyBin / 255) * 5
+      this.brightness = 70 + (frequencyBin / 255) * 30
+      
+      // Reset if out of bounds
+      if (this.x < 0 || this.x > this.p.width || 
+          this.y < 0 || this.y > this.p.height ||
+          this.z < -200 || this.z > 200) {
+        this.reset()
+      }
+    }
+    
+    draw() {
+      // Calculate perspective scaling
+      const scale = this.p.map(this.z, -100, 100, 0.5, 1.5)
+      const scaledSize = this.size * scale
+      
+      // Draw glow effect
+      this.p.noStroke()
+      for (let i = 0; i < 3; i++) {
+        const alpha = this.p.map(i, 0, 3, 0.7, 0.1)
+        const glowSize = scaledSize + (i * this.glowSize * scale)
+        this.p.fill(this.hue, 80, this.brightness, alpha)
+        this.p.circle(this.x, this.y, glowSize)
+      }
+      
+      // Draw main particle
+      this.p.fill(this.hue, 80, this.brightness, 0.9)
+      this.p.circle(this.x, this.y, scaledSize)
+    }
+  }
+  
   // p5.js sketch
   const sketch = (p) => {
     let particles = []
-    const particleCount = 1000
+    const particleCount = activeStyle.value === 'particles3d' ? 500 : 1000
     
     p.setup = () => {
       p.createCanvas(window.innerWidth, window.innerHeight)
       p.colorMode(p.HSB, 360, 100, 100, 1)
       p.background(0)
       
-      particles = Array.from({ length: particleCount }, () => new Particle(p))
+      // Create particles based on active style
+      createParticles()
+    }
+    
+    // Function to create particles based on active style
+    const createParticles = () => {
+      if (activeStyle.value === 'particles3d') {
+        particles = Array.from({ length: particleCount }, () => new EnhancedParticle(p))
+      } else {
+        particles = Array.from({ length: particleCount }, () => new Particle(p))
+      }
     }
     
     p.draw = () => {
@@ -715,15 +784,34 @@ const initParticleVisualization = () => {
       const intensity = p.map(average, 0, 255, 1, 3)
       
       // Update and draw particles
-      particles.forEach(particle => {
-        particle.update(intensity)
-        particle.draw()
-      })
+      if (activeStyle.value === 'particles3d') {
+        // Enhanced particles with frequency bin data
+        particles.forEach((particle, index) => {
+          // Get frequency bin for this particle
+          const binIndex = Math.floor((index / particles.length) * dataArray.length)
+          const frequencyValue = dataArray[binIndex]
+          
+          particle.update(intensity, frequencyValue)
+          particle.draw()
+        })
+      } else {
+        // Regular particles
+        particles.forEach(particle => {
+          particle.update(intensity)
+          particle.draw()
+        })
+      }
     }
     
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight)
     }
+    
+    // Watch for style changes and recreate particles
+    watch(() => activeStyle.value, (newStyle) => {
+      console.log('Particle visualization style changed to:', newStyle)
+      createParticles()
+    })
   }
   
   // Create p5 instance
