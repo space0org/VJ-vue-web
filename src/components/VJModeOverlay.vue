@@ -371,31 +371,93 @@ const initWaveformVisualization = () => {
     // Draw waveform
     canvasCtx.lineWidth = 3
     
-    // Use theme colors
-    const colors = getThemeColors(props.theme)
-    const hue = colors.hueStart
-    canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
-    
-    canvasCtx.beginPath()
-    
-    const sliceWidth = width / waveformDataArray.length
-    let x = 0
-    
-    for (let i = 0; i < waveformDataArray.length; i++) {
-      const v = waveformDataArray[i] / 128.0
-      const y = v * height / 2
-      
-      if (i === 0) {
-        canvasCtx.moveTo(x, y)
-      } else {
-        canvasCtx.lineTo(x, y)
-      }
-      
-      x += sliceWidth
+    // Get audio intensity for rainbow style
+    let audioIntensity = 0
+    if (activeStyle.value === 'rainbow') {
+      const frequencyData = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(frequencyData)
+      audioIntensity = frequencyData.reduce((sum, value) => sum + value, 0) / frequencyData.length
     }
     
-    canvasCtx.lineTo(width, height / 2)
-    canvasCtx.stroke()
+    // Use theme colors
+    const colors = getThemeColors(props.theme)
+    
+    if (activeStyle.value === 'default') {
+      // Default style - single color
+      const hue = colors.hueStart
+      canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+      
+      canvasCtx.beginPath()
+      
+      const sliceWidth = width / waveformDataArray.length
+      let x = 0
+      
+      for (let i = 0; i < waveformDataArray.length; i++) {
+        const v = waveformDataArray[i] / 128.0
+        const y = v * height / 2
+        
+        if (i === 0) {
+          canvasCtx.moveTo(x, y)
+        } else {
+          canvasCtx.lineTo(x, y)
+        }
+        
+        x += sliceWidth
+      }
+      
+      canvasCtx.lineTo(width, height / 2)
+      canvasCtx.stroke()
+    } 
+    else if (activeStyle.value === 'rainbow') {
+      // Rainbow gradient style - color changes with sound intensity
+      const sliceWidth = width / waveformDataArray.length
+      
+      for (let i = 0; i < waveformDataArray.length - 1; i++) {
+        const v1 = waveformDataArray[i] / 128.0
+        const v2 = waveformDataArray[i + 1] / 128.0
+        
+        const x1 = i * sliceWidth
+        const y1 = v1 * height / 2
+        const x2 = (i + 1) * sliceWidth
+        const y2 = v2 * height / 2
+        
+        // Map audio intensity to hue
+        const hueOffset = (audioIntensity / 255) * 360
+        const hue = (colors.hueStart + hueOffset + i * 0.1) % 360
+        
+        canvasCtx.beginPath()
+        canvasCtx.moveTo(x1, y1)
+        canvasCtx.lineTo(x2, y2)
+        canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+        canvasCtx.stroke()
+      }
+    }
+    else {
+      // Default fallback for other styles not yet implemented
+      const hue = colors.hueStart
+      canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+      
+      canvasCtx.beginPath()
+      
+      const sliceWidth = width / waveformDataArray.length
+      let x = 0
+      
+      for (let i = 0; i < waveformDataArray.length; i++) {
+        const v = waveformDataArray[i] / 128.0
+        const y = v * height / 2
+        
+        if (i === 0) {
+          canvasCtx.moveTo(x, y)
+        } else {
+          canvasCtx.lineTo(x, y)
+        }
+        
+        x += sliceWidth
+      }
+      
+      canvasCtx.lineTo(width, height / 2)
+      canvasCtx.stroke()
+    }
     
     waveformAnimationId = requestAnimationFrame(drawWaveform)
   }
