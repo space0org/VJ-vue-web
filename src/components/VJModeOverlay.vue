@@ -661,7 +661,7 @@ const initFractalVisualization = () => {
       this.p = p
       this.audioData = audioData
       this.branches = []
-      this.maxDepth = 5
+      this.maxDepth = 8 // Increased from 5 to 8 for more detailed fractals
       this.angle = 0
       this.angleVelocity = 0.01 // Increased velocity
       this.centerX = p.width / 2
@@ -675,18 +675,18 @@ const initFractalVisualization = () => {
     }
 
     initBranches() {
-      const branchCount = 20 // Even more branches
+      const branchCount = 36 // Increased from 20 to 36 for more detailed fractals
       for (let i = 0; i < branchCount; i++) {
         const angle = (i / branchCount) * this.p.TWO_PI
         this.branches.push({
           angle: angle,
           length: 0,
-          maxLength: this.p.random(200, 400), // Even longer branches
+          maxLength: this.p.random(150, 300), // Adjusted for better proportions with more branches
           growing: true,
           children: [],
           depth: 0,
           hue: this.p.random(this.colors.hueStart, this.colors.hueEnd),
-          thickness: this.p.random(5, 15) // Even thicker branches
+          thickness: this.p.random(3, 10) // Reduced thickness for finer detail
         })
       }
     }
@@ -727,33 +727,52 @@ const initFractalVisualization = () => {
           branch.length += 1 * audioIntensity
           
           // Create child branches when parent reaches certain length
-          if (branch.length > branch.maxLength * 0.6 && 
-              branch.children.length < 2 && 
+          if (branch.length > branch.maxLength * 0.5 && // Reduced from 0.6 to 0.5 to create branches earlier
+              branch.children.length < 3 && // Increased from 2 to 3 for more branching
               branch.depth < this.maxDepth && 
-              this.p.random() < 0.03 * audioIntensity) {
+              this.p.random() < 0.05 * audioIntensity) { // Increased from 0.03 to 0.05 for more frequent branching
             
-            const angleOffset = this.p.random(0.3, 0.7)
+            // Create multiple branches with varying angles for more complexity
+            const baseAngleOffset = this.p.random(0.2, 0.5) // Reduced range for tighter patterns
+            
+            // First branch - slightly right
             branch.children.push({
-              angle: branch.angle + angleOffset,
+              angle: branch.angle + baseAngleOffset,
               length: 0,
-              maxLength: branch.maxLength * 0.7,
+              maxLength: branch.maxLength * 0.65, // Adjusted for better proportions
               growing: true,
               children: [],
               depth: branch.depth + 1,
-              hue: (branch.hue + 30) % 360,
+              hue: (branch.hue + 30 + this.colorOffset) % 360, // Added colorOffset for more variety
               thickness: branch.thickness * 0.7
             })
             
+            // Second branch - slightly left
             branch.children.push({
-              angle: branch.angle - angleOffset,
+              angle: branch.angle - baseAngleOffset,
               length: 0,
-              maxLength: branch.maxLength * 0.7,
+              maxLength: branch.maxLength * 0.65, // Adjusted for better proportions
               growing: true,
               children: [],
               depth: branch.depth + 1,
-              hue: (branch.hue + 60) % 360,
+              hue: (branch.hue + 60 + this.colorOffset) % 360, // Added colorOffset for more variety
               thickness: branch.thickness * 0.7
             })
+            
+            // Third branch - random angle for more variety (only at lower depths)
+            if (branch.depth < 3 && this.p.random() < 0.7) {
+              const randomAngle = branch.angle + this.p.random(-0.3, 0.3)
+              branch.children.push({
+                angle: randomAngle,
+                length: 0,
+                maxLength: branch.maxLength * 0.5,
+                growing: true,
+                children: [],
+                depth: branch.depth + 1,
+                hue: (branch.hue + 90 + this.colorOffset) % 360, // Added colorOffset for more variety
+                thickness: branch.thickness * 0.6
+              })
+            }
           }
           
           // Stop growing when max length is reached
@@ -790,24 +809,48 @@ const initFractalVisualization = () => {
       const endY = startY + Math.sin(branch.angle) * branch.length
       
       // Draw the branch with extreme brightness and thickness
-      this.p.strokeWeight(branch.thickness * 5) // Even thicker lines
-      this.p.stroke(branch.hue, 100, 100, 1) // Maximum brightness and opacity
+      this.p.strokeWeight(branch.thickness * 3) // Reduced from 5 to 3 for finer lines
+      this.p.stroke(branch.hue, 100, 100, 0.9) // Slightly reduced opacity for layering effect
       this.p.line(startX, startY, endX, endY)
       
       // Draw a much larger, brighter circle at the end
       this.p.noStroke()
-      this.p.fill(branch.hue, 100, 100, 1) // Maximum brightness and opacity
-      this.p.circle(endX, endY, branch.thickness * 12) // Even larger circle
+      this.p.fill(branch.hue, 100, 100, 0.9) // Slightly reduced opacity
+      this.p.circle(endX, endY, branch.thickness * 8) // Reduced from 12 for finer detail
       
-      // Add multiple glow effects with larger, semi-transparent circles
-      this.p.fill(branch.hue, 100, 100, 0.5)
-      this.p.circle(endX, endY, branch.thickness * 20)
+      // Add multiple glow effects with varying sizes and opacities for more detailed appearance
+      this.p.fill(branch.hue, 100, 100, 0.6)
+      this.p.circle(endX, endY, branch.thickness * 15)
       
-      this.p.fill(branch.hue, 100, 100, 0.3)
-      this.p.circle(endX, endY, branch.thickness * 30)
+      this.p.fill(branch.hue, 100, 100, 0.4)
+      this.p.circle(endX, endY, branch.thickness * 25)
+      
+      this.p.fill(branch.hue, 100, 100, 0.2)
+      this.p.circle(endX, endY, branch.thickness * 35)
       
       this.p.fill(branch.hue, 100, 100, 0.1)
-      this.p.circle(endX, endY, branch.thickness * 40)
+      this.p.circle(endX, endY, branch.thickness * 50)
+      
+      // Add small detail circles along the branch for more intricate patterns
+      if (branch.length > 20) {
+        const midX = startX + Math.cos(branch.angle) * (branch.length * 0.5)
+        const midY = startY + Math.sin(branch.angle) * (branch.length * 0.5)
+        
+        this.p.fill((branch.hue + 30) % 360, 100, 100, 0.7)
+        this.p.circle(midX, midY, branch.thickness * 4)
+        
+        // Add even more detail with smaller circles at quarter points
+        if (branch.length > 40) {
+          const quarterX = startX + Math.cos(branch.angle) * (branch.length * 0.25)
+          const quarterY = startY + Math.sin(branch.angle) * (branch.length * 0.25)
+          const threeQuarterX = startX + Math.cos(branch.angle) * (branch.length * 0.75)
+          const threeQuarterY = startY + Math.sin(branch.angle) * (branch.length * 0.75)
+          
+          this.p.fill((branch.hue + 60) % 360, 100, 100, 0.5)
+          this.p.circle(quarterX, quarterY, branch.thickness * 2)
+          this.p.circle(threeQuarterX, threeQuarterY, branch.thickness * 2)
+        }
+      }
       
       // Draw children recursively
       for (const child of branch.children) {

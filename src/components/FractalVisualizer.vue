@@ -58,7 +58,7 @@ class FractalSystem {
     this.p = p
     this.audioData = audioData
     this.branches = []
-    this.maxDepth = 5
+    this.maxDepth = 8 // Increased from 5 to 8 for more detailed fractals
     this.angle = 0
     this.angleVelocity = 0.01 // Increased velocity
     this.centerX = p.width / 2
@@ -73,18 +73,18 @@ class FractalSystem {
   }
 
   initBranches() {
-    const branchCount = 16 // Increased branch count
+    const branchCount = 32 // Increased from 16 to 32 for more detailed fractals
     for (let i = 0; i < branchCount; i++) {
       const angle = (i / branchCount) * this.p.TWO_PI
       this.branches.push({
         angle: angle,
         length: 0,
-        maxLength: this.p.random(200, 400), // Increased length
+        maxLength: this.p.random(150, 300), // Adjusted for better proportions with more branches
         growing: true,
         children: [],
         depth: 0,
         hue: this.p.random(this.colors.hueStart, this.colors.hueEnd),
-        thickness: this.p.random(5, 12) // Increased thickness
+        thickness: this.p.random(3, 8) // Reduced thickness for finer detail
       })
     }
     console.log('Initialized', branchCount, 'branches for fractal visualization')
@@ -120,16 +120,19 @@ class FractalSystem {
         branch.length += 1 * audioIntensity
         
         // Create child branches when parent reaches certain length
-        if (branch.length > branch.maxLength * 0.6 && 
-            branch.children.length < 2 && 
+        if (branch.length > branch.maxLength * 0.5 && // Reduced from 0.6 to 0.5 to create branches earlier
+            branch.children.length < 3 && // Increased from 2 to 3 for more branching
             branch.depth < this.maxDepth && 
-            this.p.random() < 0.03 * audioIntensity) {
+            this.p.random() < 0.05 * audioIntensity) { // Increased from 0.03 to 0.05 for more frequent branching
           
-          const angleOffset = this.p.random(0.3, 0.7)
+          // Create multiple branches with varying angles for more complexity
+          const baseAngleOffset = this.p.random(0.2, 0.5) // Reduced range for tighter patterns
+          
+          // First branch - slightly right
           branch.children.push({
-            angle: branch.angle + angleOffset,
+            angle: branch.angle + baseAngleOffset,
             length: 0,
-            maxLength: branch.maxLength * 0.7,
+            maxLength: branch.maxLength * 0.65, // Adjusted for better proportions
             growing: true,
             children: [],
             depth: branch.depth + 1,
@@ -137,16 +140,32 @@ class FractalSystem {
             thickness: branch.thickness * 0.7
           })
           
+          // Second branch - slightly left
           branch.children.push({
-            angle: branch.angle - angleOffset,
+            angle: branch.angle - baseAngleOffset,
             length: 0,
-            maxLength: branch.maxLength * 0.7,
+            maxLength: branch.maxLength * 0.65, // Adjusted for better proportions
             growing: true,
             children: [],
             depth: branch.depth + 1,
             hue: (branch.hue + 60) % 360,
             thickness: branch.thickness * 0.7
           })
+          
+          // Third branch - random angle for more variety (only at lower depths)
+          if (branch.depth < 3 && this.p.random() < 0.7) {
+            const randomAngle = branch.angle + this.p.random(-0.3, 0.3)
+            branch.children.push({
+              angle: randomAngle,
+              length: 0,
+              maxLength: branch.maxLength * 0.5,
+              growing: true,
+              children: [],
+              depth: branch.depth + 1,
+              hue: (branch.hue + 90) % 360,
+              thickness: branch.thickness * 0.6
+            })
+          }
         }
         
         // Stop growing when max length is reached
@@ -183,18 +202,33 @@ class FractalSystem {
     const endY = startY + Math.sin(branch.angle) * branch.length
     
     // Draw the branch with extreme brightness and thickness
-    this.p.strokeWeight(branch.thickness * 3)
-    this.p.stroke(branch.hue, 100, 100, 1) // Maximum brightness and opacity
+    this.p.strokeWeight(branch.thickness * 2) // Reduced from 3 to 2 for finer lines
+    this.p.stroke(branch.hue, 100, 100, 0.9) // Slightly reduced opacity for layering effect
     this.p.line(startX, startY, endX, endY)
     
     // Draw a much larger, brighter circle at the end
     this.p.noStroke()
-    this.p.fill(branch.hue, 100, 100, 1) // Maximum brightness and opacity
-    this.p.circle(endX, endY, branch.thickness * 8) // Much larger circle
+    this.p.fill(branch.hue, 100, 100, 0.9) // Slightly reduced opacity
+    this.p.circle(endX, endY, branch.thickness * 6) // Reduced from 8 to 6 for finer detail
     
-    // Add a glow effect with a larger, semi-transparent circle
+    // Add multiple glow effects with varying sizes and opacities for more detailed appearance
+    this.p.fill(branch.hue, 100, 100, 0.5)
+    this.p.circle(endX, endY, branch.thickness * 10)
+    
     this.p.fill(branch.hue, 100, 100, 0.3)
     this.p.circle(endX, endY, branch.thickness * 16)
+    
+    this.p.fill(branch.hue, 100, 100, 0.1)
+    this.p.circle(endX, endY, branch.thickness * 24)
+    
+    // Add small detail circles along the branch for more intricate patterns
+    if (branch.length > 20) {
+      const midX = startX + Math.cos(branch.angle) * (branch.length * 0.5)
+      const midY = startY + Math.sin(branch.angle) * (branch.length * 0.5)
+      
+      this.p.fill((branch.hue + 30) % 360, 100, 100, 0.7)
+      this.p.circle(midX, midY, branch.thickness * 3)
+    }
     
     // Draw children recursively
     for (const child of branch.children) {
@@ -245,27 +279,48 @@ const sketch = (p) => {
       const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
       props.audioAnalyser.getByteFrequencyData(dataArray)
       
-      // Calculate average intensity
+      // Calculate average intensity with more dynamic range
       const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
-      const intensity = p.map(average, 0, 255, 1.5, 4) // Increased intensity range
+      const intensity = p.map(average, 0, 255, 2.0, 5.0) // Increased range for more dramatic effect
       
-      // Update and draw fractal system
+      // Calculate frequency bands for more detailed audio analysis
+      const bassAvg = calculateBandAverage(dataArray, 0, 10); // Low frequencies
+      const midAvg = calculateBandAverage(dataArray, 10, 100); // Mid frequencies
+      const highAvg = calculateBandAverage(dataArray, 100, 255); // High frequencies
+      
+      // Adjust color cycling based on frequency bands
+      fractalSystem.colorOffset = (fractalSystem.colorOffset + bassAvg * 0.01) % 360;
+      
+      // Update and draw fractal system with enhanced audio responsiveness
       fractalSystem.update(intensity)
       fractalSystem.draw()
       
-      // Debug visualization
-      p.fill(255, 0, 0)
-      p.noStroke()
-      p.circle(p.width/2, p.height/2, 10) // Red dot at center to confirm rendering
-      
-      // Log every 30 frames
-      if (p.frameCount % 30 === 0) {
-        console.log('Fractal drawing at frame:', p.frameCount, 'with intensity:', intensity)
+      // Log every 60 frames
+      if (p.frameCount % 60 === 0) {
+        console.log('Fractal drawing at frame:', p.frameCount, 'with intensity:', intensity, 
+                    'bass:', bassAvg.toFixed(2), 'mid:', midAvg.toFixed(2), 'high:', highAvg.toFixed(2))
       }
       
     } catch (error) {
       console.error('Error in fractal visualizer draw loop:', error)
     }
+  }
+  
+  // Helper function to calculate average value in a frequency range
+  function calculateBandAverage(dataArray, startIdx, endIdx) {
+    let sum = 0;
+    let count = 0;
+    
+    // Make sure we don't exceed array bounds
+    const start = Math.max(0, Math.min(startIdx, dataArray.length - 1));
+    const end = Math.max(0, Math.min(endIdx, dataArray.length - 1));
+    
+    for (let i = start; i < end; i++) {
+      sum += dataArray[i];
+      count++;
+    }
+    
+    return count > 0 ? (sum / count) / 255 : 0; // Normalize to 0-1 range
   }
   
   p.windowResized = () => {
