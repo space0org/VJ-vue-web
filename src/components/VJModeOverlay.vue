@@ -114,6 +114,21 @@ const props = defineProps({
   isActive: {
     type: Boolean,
     default: false
+  },
+  version: {
+    type: Object,
+    default: () => ({
+      id: 'v1',
+      config: {
+        maxDepth: 8,
+        branchCount: 36,
+        branchThickness: { min: 3, max: 10 },
+        maxLength: { min: 150, max: 300 },
+        angleVelocity: 0.01,
+        colorOffset: 0.5,
+        intensity: { min: 2.0, max: 5.0 }
+      }
+    })
   }
 })
 
@@ -617,6 +632,20 @@ onMounted(() => {
       }, 50)
     }
   })
+  
+  // Listen for version change events
+  window.addEventListener('version-changed', (event) => {
+    if (event.detail && event.detail.version) {
+      console.log('VJModeOverlay: Received version change event:', event.detail.version.name)
+      
+      // Reinitialize fractal visualization with new version
+      if (isActive.value) {
+        setTimeout(() => {
+          initFractalVisualization()
+        }, 50)
+      }
+    }
+  })
 })
 
 // Initialize fractal visualization
@@ -661,13 +690,13 @@ const initFractalVisualization = () => {
       this.p = p
       this.audioData = audioData
       this.branches = []
-      this.maxDepth = 8 // Increased from 5 to 8 for more detailed fractals
+      this.maxDepth = props.version.config.maxDepth || 8
       this.angle = 0
-      this.angleVelocity = 0.01 // Increased velocity
+      this.angleVelocity = props.version.config.angleVelocity || 0.01
       this.centerX = p.width / 2
       this.centerY = p.height / 2
       this.colors = getThemeColors(props.theme)
-      this.colorOffset = 0
+      this.colorOffset = props.version.config.colorOffset || 0
       this.initBranches()
       
       // Debug message
@@ -675,18 +704,21 @@ const initFractalVisualization = () => {
     }
 
     initBranches() {
-      const branchCount = 36 // Increased from 20 to 36 for more detailed fractals
+      const branchCount = props.version.config.branchCount || 36
       for (let i = 0; i < branchCount; i++) {
         const angle = (i / branchCount) * this.p.TWO_PI
+        const thicknessConfig = props.version.config.branchThickness || { min: 3, max: 10 }
+        const lengthConfig = props.version.config.maxLength || { min: 150, max: 300 }
+        
         this.branches.push({
           angle: angle,
           length: 0,
-          maxLength: this.p.random(150, 300), // Adjusted for better proportions with more branches
+          maxLength: this.p.random(lengthConfig.min, lengthConfig.max),
           growing: true,
           children: [],
           depth: 0,
           hue: this.p.random(this.colors.hueStart, this.colors.hueEnd),
-          thickness: this.p.random(3, 10) // Reduced thickness for finer detail
+          thickness: this.p.random(thicknessConfig.min, thicknessConfig.max)
         })
       }
     }
@@ -893,7 +925,8 @@ const initFractalVisualization = () => {
         
        // Calculate average intensity with more dynamic range for mock audio
         const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
-        const intensity = p.map(average, 0, 255, 2.0, 5.0) // Further increased intensity range for more dramatic effect
+        const intensityConfig = props.version.config.intensity || { min: 2.0, max: 5.0 }
+        const intensity = p.map(average, 0, 255, intensityConfig.min, intensityConfig.max)
         
         // Update and draw fractal system
         fractalSystem.update(intensity)
