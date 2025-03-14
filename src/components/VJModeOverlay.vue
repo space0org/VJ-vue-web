@@ -28,6 +28,13 @@
         class="absolute inset-0 w-full h-full"
       ></canvas>
       
+      <!-- Fractal visualization layer - moved to top for visibility -->
+      <div 
+        ref="fractalContainer" 
+        class="absolute inset-0 w-full h-full z-50 pointer-events-none"
+        style="mix-blend-mode: lighten; opacity: 1; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
+      ></div>
+      
       <!-- Controls overlay - only visible when mouse moves -->
       <div 
         v-if="showControls"
@@ -82,6 +89,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import p5 from 'p5'
+import FractalVisualizer from './FractalVisualizer.vue'
 
 const props = defineProps({
   audioAnalyser: {
@@ -115,6 +123,7 @@ const vjContainer = ref(null)
 const waveformCanvas = ref(null)
 const frequencyCanvas = ref(null)
 const particleContainer = ref(null)
+const fractalContainer = ref(null)
 // Use local isActive state that syncs with props
 const isActive = ref(props.isActive)
 const showControls = ref(true)
@@ -125,8 +134,12 @@ let controlsTimeout = null
 const layers = ref([
   { id: 'waveform', name: '波形', active: true },
   { id: 'particles', name: 'パーティクル', active: true },
-  { id: 'frequency', name: '周波数', active: true }
+  { id: 'frequency', name: '周波数', active: true },
+  { id: 'fractal', name: 'フラクタル', active: true }
 ])
+
+// Debug log layers
+console.log('VJModeOverlay: Layers configuration:', layers.value)
 
 // Animation IDs
 let waveformAnimationId = null
@@ -199,6 +212,7 @@ const activate = () => {
     initWaveformVisualization()
     initFrequencyVisualization()
     initParticleVisualization()
+    initFractalVisualization()
     
     // Show controls briefly, then hide
     controlsVisible.value = true
@@ -567,6 +581,7 @@ watch(() => isActive.value, (newValue) => {
       initWaveformVisualization()
       initFrequencyVisualization()
       initParticleVisualization()
+      initFractalVisualization()
     }, 50)
   }
 })
@@ -581,6 +596,7 @@ watch(() => props.audioAnalyser, (newValue) => {
       initWaveformVisualization()
       initFrequencyVisualization()
       initParticleVisualization()
+      initFractalVisualization()
     }, 50)
   }
 })
@@ -597,10 +613,277 @@ onMounted(() => {
         initWaveformVisualization()
         initFrequencyVisualization()
         initParticleVisualization()
+        initFractalVisualization()
       }, 50)
     }
   })
 })
+
+// Initialize fractal visualization
+const initFractalVisualization = () => {
+  if (!fractalContainer.value) return
+  console.log('VJModeOverlay: Initializing fractal visualization with analyser:', props.audioAnalyser)
+  if (!props.audioAnalyser) {
+    console.warn('VJModeOverlay: No audio analyser available for fractal visualization')
+    return
+  }
+  
+  const fractalLayer = layers.value.find(l => l.id === 'fractal')
+  if (!fractalLayer || !fractalLayer.active) {
+    console.log('VJModeOverlay: Fractal layer is inactive or not found, skipping initialization')
+    return
+  }
+  
+  // Clear previous content
+  while (fractalContainer.value.firstChild) {
+    fractalContainer.value.removeChild(fractalContainer.value.firstChild)
+  }
+  
+  // Theme color helper function
+  const getThemeColors = (theme) => {
+    switch (theme) {
+      case 'cool':
+        return { hueStart: 180, hueEnd: 240 }
+      case 'warm':
+        return { hueStart: 0, hueEnd: 60 }
+      case 'forest':
+        return { hueStart: 90, hueEnd: 150 }
+      case 'sunset':
+        return { hueStart: 0, hueEnd: 60, saturation: 100, brightness: 100 }
+      default:
+        return { hueStart: 0, hueEnd: 360 }
+    }
+  }
+  
+  // Fractal class
+  class FractalSystem {
+    constructor(p, audioData) {
+      this.p = p
+      this.audioData = audioData
+      this.branches = []
+      this.maxDepth = 5
+      this.angle = 0
+      this.angleVelocity = 0.01 // Increased velocity
+      this.centerX = p.width / 2
+      this.centerY = p.height / 2
+      this.colors = getThemeColors(props.theme)
+      this.colorOffset = 0
+      this.initBranches()
+      
+      // Debug message
+      console.log('FractalSystem initialized with dimensions:', p.width, 'x', p.height)
+    }
+
+    initBranches() {
+      const branchCount = 20 // Even more branches
+      for (let i = 0; i < branchCount; i++) {
+        const angle = (i / branchCount) * this.p.TWO_PI
+        this.branches.push({
+          angle: angle,
+          length: 0,
+          maxLength: this.p.random(200, 400), // Even longer branches
+          growing: true,
+          children: [],
+          depth: 0,
+          hue: this.p.random(this.colors.hueStart, this.colors.hueEnd),
+          thickness: this.p.random(5, 15) // Even thicker branches
+        })
+      }
+    }
+
+    update(audioIntensity) {
+      this.angle += this.angleVelocity * audioIntensity
+      this.colorOffset = (this.colorOffset + 0.5) % 360 // Cycle through colors
+      
+      // Update existing branches
+      this.updateBranch(this.branches, audioIntensity)
+      
+      // Add new branches occasionally based on audio intensity
+      if (this.p.random() < 0.1 * audioIntensity && this.branches.length < 30) { // More branches
+        const angle = this.p.random(this.p.TWO_PI)
+        this.branches.push({
+          angle: angle,
+          length: 0,
+          maxLength: this.p.random(200, 400), // Even longer branches
+          growing: true,
+          children: [],
+          depth: 0,
+          hue: (this.p.random(this.colors.hueStart, this.colors.hueEnd) + this.colorOffset) % 360,
+          thickness: this.p.random(5, 12) // Even thicker branches
+        })
+      }
+      
+      // Debug message every 30 frames
+      if (this.p.frameCount % 30 === 0) {
+        console.log('FractalSystem update with branches:', this.branches.length, 'intensity:', audioIntensity)
+      }
+    }
+    
+    updateBranch(branches, audioIntensity) {
+      for (let i = branches.length - 1; i >= 0; i--) {
+        const branch = branches[i]
+        
+        if (branch.growing) {
+          branch.length += 1 * audioIntensity
+          
+          // Create child branches when parent reaches certain length
+          if (branch.length > branch.maxLength * 0.6 && 
+              branch.children.length < 2 && 
+              branch.depth < this.maxDepth && 
+              this.p.random() < 0.03 * audioIntensity) {
+            
+            const angleOffset = this.p.random(0.3, 0.7)
+            branch.children.push({
+              angle: branch.angle + angleOffset,
+              length: 0,
+              maxLength: branch.maxLength * 0.7,
+              growing: true,
+              children: [],
+              depth: branch.depth + 1,
+              hue: (branch.hue + 30) % 360,
+              thickness: branch.thickness * 0.7
+            })
+            
+            branch.children.push({
+              angle: branch.angle - angleOffset,
+              length: 0,
+              maxLength: branch.maxLength * 0.7,
+              growing: true,
+              children: [],
+              depth: branch.depth + 1,
+              hue: (branch.hue + 60) % 360,
+              thickness: branch.thickness * 0.7
+            })
+          }
+          
+          // Stop growing when max length is reached
+          if (branch.length >= branch.maxLength) {
+            branch.growing = false
+          }
+        } else {
+          // Slowly fade out completed branches
+          branch.thickness -= 0.01
+          if (branch.thickness <= 0) {
+            branches.splice(i, 1)
+          }
+        }
+        
+        // Update children recursively
+        this.updateBranch(branch.children, audioIntensity)
+      }
+    }
+    
+    draw() {
+      this.p.push()
+      this.p.translate(this.centerX, this.centerY)
+      this.p.rotate(this.angle)
+      
+      for (const branch of this.branches) {
+        this.drawBranch(branch, 0, 0)
+      }
+      
+      this.p.pop()
+    }
+    
+    drawBranch(branch, startX, startY) {
+      const endX = startX + Math.cos(branch.angle) * branch.length
+      const endY = startY + Math.sin(branch.angle) * branch.length
+      
+      // Draw the branch with extreme brightness and thickness
+      this.p.strokeWeight(branch.thickness * 5) // Even thicker lines
+      this.p.stroke(branch.hue, 100, 100, 1) // Maximum brightness and opacity
+      this.p.line(startX, startY, endX, endY)
+      
+      // Draw a much larger, brighter circle at the end
+      this.p.noStroke()
+      this.p.fill(branch.hue, 100, 100, 1) // Maximum brightness and opacity
+      this.p.circle(endX, endY, branch.thickness * 12) // Even larger circle
+      
+      // Add multiple glow effects with larger, semi-transparent circles
+      this.p.fill(branch.hue, 100, 100, 0.5)
+      this.p.circle(endX, endY, branch.thickness * 20)
+      
+      this.p.fill(branch.hue, 100, 100, 0.3)
+      this.p.circle(endX, endY, branch.thickness * 30)
+      
+      this.p.fill(branch.hue, 100, 100, 0.1)
+      this.p.circle(endX, endY, branch.thickness * 40)
+      
+      // Draw children recursively
+      for (const child of branch.children) {
+        this.drawBranch(child, endX, endY)
+      }
+    }
+  }
+  
+  // p5.js sketch
+  const sketch = (p) => {
+    let canvas = null
+    let fractalSystem = null
+    
+    p.setup = () => {
+      canvas = p.createCanvas(window.innerWidth, window.innerHeight)
+      canvas.parent(fractalContainer.value)
+      
+      p.colorMode(p.HSB, 360, 100, 100, 1)
+      p.background(0)
+      
+      // Initialize fractal system
+      fractalSystem = new FractalSystem(p, [])
+      
+      console.log('Fractal visualizer setup completed successfully')
+    }
+    
+    p.draw = () => {
+      if (!isActive.value) return
+      if (!layers.value.find(l => l.id === 'fractal').active) {
+        // Skip drawing if layer is inactive
+        return
+      }
+      
+      p.background(0, 0) // Completely transparent background
+      
+      try {
+        // Get audio data
+        const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+        props.audioAnalyser.getByteFrequencyData(dataArray)
+        
+       // Calculate average intensity with more dynamic range for mock audio
+        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+        const intensity = p.map(average, 0, 255, 2.0, 5.0) // Further increased intensity range for more dramatic effect
+        
+        // Update and draw fractal system
+        fractalSystem.update(intensity)
+        fractalSystem.draw()
+        
+        // Debug visualization
+        p.fill(255, 0, 0)
+        p.noStroke()
+        p.circle(p.width/2, p.height/2, 10) // Red dot at center to confirm rendering
+        
+        console.log('Fractal drawing at frame:', p.frameCount, 'with intensity:', intensity)
+      } catch (error) {
+        console.error('Error in fractal visualizer draw loop:', error)
+      }
+    }
+    
+    p.windowResized = () => {
+      p.resizeCanvas(window.innerWidth, window.innerHeight)
+      
+      // Update center position
+      if (fractalSystem) {
+        fractalSystem.centerX = p.width / 2
+        fractalSystem.centerY = p.height / 2
+      }
+    }
+  }
+  
+  // Create p5 instance
+  new p5(sketch, fractalContainer.value)
+  
+  console.log('VJModeOverlay: Fractal visualization initialized')
+}
+
 
 // Lifecycle hooks
 onMounted(() => {

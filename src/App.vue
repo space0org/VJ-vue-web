@@ -1,23 +1,12 @@
 <script setup>
 import { ref, nextTick, onMounted } from 'vue'
 import AudioVisualizer from './components/AudioVisualizer.vue'
-import TapEffects from './components/TapEffects.vue'
-import VisualizationControls from './components/VisualizationControls.vue'
-import ThemeSelector from './components/ThemeSelector.vue'
 import VJModeOverlay from './components/VJModeOverlay.vue'
+import FractalVisualizer from './components/FractalVisualizer.vue'
 
-const visualizationMode = ref('all')
 const colorTheme = ref('default')
 const isVJModeActive = ref(false)
 const audioAnalyser = ref(null)
-
-const handleModeChange = (mode) => {
-  visualizationMode.value = mode
-}
-
-const handleThemeChange = (theme) => {
-  colorTheme.value = theme
-}
 
 const setAudioAnalyser = (analyser) => {
   console.log('App.vue: Received audio analyser from AudioVisualizer')
@@ -68,23 +57,23 @@ const deactivateVJMode = () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 py-8">
+  <div class="min-h-screen bg-black py-8">
     <div class="max-w-4xl mx-auto px-4">
-      <h1 class="text-3xl font-bold text-center mb-8">マイク波形ビジュアライザー</h1>
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="w-full md:w-1/2">
-          <VisualizationControls @change-mode="handleModeChange" />
-        </div>
-        <div class="w-full md:w-1/2">
-          <ThemeSelector @change-theme="handleThemeChange" />
-        </div>
-      </div>
+      <h1 class="text-3xl font-bold text-center mb-8 text-white">サイケデリックVJモード</h1>
       
       <AudioVisualizer 
-        :mode="visualizationMode" 
         :theme="colorTheme" 
         @analyser-ready="setAudioAnalyser"
       />
+      
+      <!-- Direct fractal visualization -->
+      <div v-if="audioAnalyser" class="w-full h-64 rounded-lg mt-4 relative overflow-hidden">
+        <FractalVisualizer 
+          v-if="audioAnalyser" 
+          :audioAnalyser="audioAnalyser" 
+          theme="default"
+        />
+      </div>
       
       <!-- VJ Mode Button -->
       <div class="mt-4 flex justify-center">
@@ -104,19 +93,9 @@ const deactivateVJMode = () => {
           {{ isVJModeActive ? 'VJモード実行中' : 'VJモードを起動' }}
         </button>
       </div>
-      
-      <!-- Debug info -->
-      <div v-if="audioAnalyser" class="mt-2 text-xs text-gray-500 text-center">
-        Audio Analyzer: {{ audioAnalyser ? 'Available' : 'Not Available' }} | 
-        VJ Mode: {{ isVJModeActive ? 'Active' : 'Inactive' }}
-      </div>
-      <div class="mt-8" v-if="visualizationMode === 'all' || visualizationMode === 'tap'">
-        <h2 class="text-2xl font-bold text-center mb-4">タップエフェクト</h2>
-        <TapEffects :theme="colorTheme" />
-      </div>
     </div>
     
-   <!-- VJ Mode Overlay - Always rendered -->
+    <!-- VJ Mode Overlay - Always rendered -->
     <VJModeOverlay 
       v-if="audioAnalyser"
       :audioAnalyser="audioAnalyser" 
@@ -125,14 +104,5 @@ const deactivateVJMode = () => {
       :isActive="isVJModeActive"
       @close="deactivateVJMode"
     />
-    
-   <!-- VJ Mode Indicator -->
-    <div v-if="isVJModeActive" class="vj-mode-indicator">
-      VJモード実行中
-    </div>
-    <!-- Debug info -->
-    <div v-if="audioAnalyser" class="fixed bottom-2 right-2 text-xs text-gray-500">
-      Audio Analyzer: {{ audioAnalyser ? 'Available' : 'Not Available' }}
-    </div>
   </div>
 </template>
