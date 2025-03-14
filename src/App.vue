@@ -3,10 +3,13 @@ import { ref, nextTick, onMounted } from 'vue'
 import AudioVisualizer from './components/AudioVisualizer.vue'
 import VJModeOverlay from './components/VJModeOverlay.vue'
 import FractalVisualizer from './components/FractalVisualizer.vue'
+import VersionSelector from './components/VersionSelector.vue'
+import { getDefaultVersion } from './utils/VersionManager'
 
 const colorTheme = ref('default')
 const isVJModeActive = ref(false)
 const audioAnalyser = ref(null)
+const currentVersion = ref(getDefaultVersion())
 
 const setAudioAnalyser = (analyser) => {
   console.log('App.vue: Received audio analyser from AudioVisualizer')
@@ -31,7 +34,7 @@ const activateVJMode = () => {
   if (isVJModeActive.value) {
     // Force a re-initialization of the VJ mode overlay immediately
     window.dispatchEvent(new CustomEvent('vj-mode-activated', { 
-      detail: { audioAnalyser: audioAnalyser.value } 
+      detail: { audioAnalyser: audioAnalyser.value, version: currentVersion.value } 
     }))
     
     // Add a small delay to ensure the component is mounted and visible
@@ -54,6 +57,18 @@ const deactivateVJMode = () => {
   isVJModeActive.value = false
   console.log('VJ mode deactivated:', isVJModeActive.value)
 }
+
+const handleVersionSelected = (version) => {
+  console.log('Version selected:', version.name)
+  currentVersion.value = version
+  
+  // If VJ mode is active, update it with the new version
+  if (isVJModeActive.value && audioAnalyser.value) {
+    window.dispatchEvent(new CustomEvent('version-changed', { 
+      detail: { version: version } 
+    }))
+  }
+}
 </script>
 
 <template>
@@ -72,6 +87,7 @@ const deactivateVJMode = () => {
           v-if="audioAnalyser" 
           :audioAnalyser="audioAnalyser" 
           theme="default"
+          :version="currentVersion"
         />
       </div>
       
@@ -102,7 +118,16 @@ const deactivateVJMode = () => {
       :theme="colorTheme"
       :showButton="false"
       :isActive="isVJModeActive"
+      :version="currentVersion"
       @close="deactivateVJMode"
+    />
+    
+    <!-- Version Selector Component -->
+    <VersionSelector
+      :isVJModeActive="isVJModeActive"
+      :currentVersionId="currentVersion.id"
+      :showVersionButton="!isVJModeActive"
+      @version-selected="handleVersionSelected"
     />
   </div>
 </template>
