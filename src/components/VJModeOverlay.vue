@@ -1196,18 +1196,423 @@ const initParticleVisualization = () => {
     }
   }
   
+  // Kaleidoscope Fragment class for enhanced kaleidoscope visualization
+  class KaleidoscopeFragment {
+    constructor(p, index, total, radius) {
+      this.p = p
+      this.index = index
+      this.total = total
+      this.baseRadius = radius
+      this.angle = (index / total) * this.p.TWO_PI
+      this.vertices = []
+      this.colors = []
+      this.generateVertices(5 + Math.floor(Math.random() * 5))
+      this.rotationSpeed = this.p.random(0.001, 0.005) * (Math.random() > 0.5 ? 1 : -1)
+      this.pulseSpeed = this.p.random(1, 3)
+      this.colorSpeed = this.p.random(0.5, 2)
+      this.baseHue = this.p.random(360)
+      this.lastUpdate = Date.now()
+      this.rotation = 0
+      
+      // Add more properties for enhanced effects
+      this.shapeType = Math.floor(this.p.random(4)) // 0: polygon, 1: star, 2: spiral, 3: wave
+      this.layerDepth = Math.floor(this.p.random(2, 5)) // Multiple layers per fragment
+      this.glowIntensity = this.p.random(0.5, 2)
+      this.frequencyBand = Math.floor(this.p.random(4)) // Bass, mid-low, mid-high, high
+    }
+    
+    generateVertices(count) {
+      this.vertices = []
+      this.colors = []
+      
+      // Create more complex shapes based on shapeType
+      if (this.shapeType === 0) { // Regular polygon
+        for (let i = 0; i < count; i++) {
+          const angle = (i / count) * this.p.TWO_PI
+          const radiusVariation = this.p.random(0.7, 1.3)
+          const radius = this.baseRadius * radiusVariation
+          
+          this.vertices.push({
+            angle: angle,
+            radius: radius,
+            originalRadius: radius,
+            pulsePhase: this.p.random(this.p.TWO_PI)
+          })
+          
+          // Assign a color to each vertex for gradient effect
+          this.colors.push({
+            hue: this.p.random(360),
+            saturation: this.p.random(80, 100),
+            brightness: this.p.random(70, 100),
+            alpha: this.p.random(0.7, 1.0)
+          })
+        }
+      } else if (this.shapeType === 1) { // Star shape
+        for (let i = 0; i < count * 2; i++) {
+          const angle = (i / (count * 2)) * this.p.TWO_PI
+          const isOuter = i % 2 === 0
+          const radiusVariation = isOuter ? this.p.random(1.0, 1.5) : this.p.random(0.3, 0.6)
+          const radius = this.baseRadius * radiusVariation
+          
+          this.vertices.push({
+            angle: angle,
+            radius: radius,
+            originalRadius: radius,
+            pulsePhase: this.p.random(this.p.TWO_PI)
+          })
+          
+          this.colors.push({
+            hue: this.p.random(360),
+            saturation: this.p.random(80, 100),
+            brightness: this.p.random(70, 100),
+            alpha: this.p.random(0.7, 1.0)
+          })
+        }
+      } else if (this.shapeType === 2) { // Spiral
+        const spiralTurns = 2 + Math.floor(this.p.random(3))
+        for (let i = 0; i < count * spiralTurns; i++) {
+          const angle = (i / (count * spiralTurns)) * this.p.TWO_PI * spiralTurns
+          const radiusRatio = i / (count * spiralTurns)
+          const radius = this.baseRadius * (0.2 + radiusRatio * 0.8)
+          
+          this.vertices.push({
+            angle: angle,
+            radius: radius,
+            originalRadius: radius,
+            pulsePhase: this.p.random(this.p.TWO_PI)
+          })
+          
+          this.colors.push({
+            hue: this.p.random(360),
+            saturation: this.p.random(80, 100),
+            brightness: this.p.random(70, 100),
+            alpha: this.p.random(0.7, 1.0)
+          })
+        }
+      } else { // Wave pattern
+        for (let i = 0; i < count; i++) {
+          const angle = (i / count) * this.p.TWO_PI
+          const waveFreq = 3 + Math.floor(this.p.random(5))
+          const waveAmp = this.p.random(0.1, 0.3)
+          const radiusVariation = 1 + Math.sin(angle * waveFreq) * waveAmp
+          const radius = this.baseRadius * radiusVariation
+          
+          this.vertices.push({
+            angle: angle,
+            radius: radius,
+            originalRadius: radius,
+            pulsePhase: this.p.random(this.p.TWO_PI),
+            waveFreq: waveFreq,
+            waveAmp: waveAmp
+          })
+          
+          this.colors.push({
+            hue: this.p.random(360),
+            saturation: this.p.random(80, 100),
+            brightness: this.p.random(70, 100),
+            alpha: this.p.random(0.7, 1.0)
+          })
+        }
+      }
+    }
+    
+    update(audioData, time) {
+      const now = Date.now()
+      const deltaTime = (now - this.lastUpdate) / 1000
+      this.lastUpdate = now
+      
+      // Get frequency band data for more targeted audio response
+      const freqBandSize = Math.floor(audioData.length / 4)
+      const bandStart = this.frequencyBand * freqBandSize
+      const bandEnd = bandStart + freqBandSize
+      
+      // Calculate average value for this frequency band
+      let bandSum = 0
+      for (let i = bandStart; i < bandEnd; i++) {
+        bandSum += audioData[i]
+      }
+      const bandAvg = bandSum / freqBandSize / 255.0
+      
+      // Enhanced audio-reactive rotation
+      const rotationMultiplier = 1 + bandAvg * 3
+      this.rotation += this.rotationSpeed * rotationMultiplier * deltaTime * 60
+      
+      // Update vertices with more complex transformations
+      for (let i = 0; i < this.vertices.length; i++) {
+        const vertex = this.vertices[i]
+        
+        // Apply more complex pulsing effect based on audio and time
+        const timePulse = Math.sin(time * this.pulseSpeed + vertex.pulsePhase) * 0.3 + 0.7
+        const audioPulse = 1 + bandAvg * (0.5 + this.frequencyBand * 0.2)
+        
+        // Add harmonic motion for more dynamic effect
+        let radiusMultiplier = timePulse * audioPulse
+        
+        // Add wave deformation if applicable
+        if (this.shapeType === 3 && vertex.waveFreq) {
+          const waveOffset = Math.sin(time * 2 + vertex.angle * vertex.waveFreq) * vertex.waveAmp
+          radiusMultiplier *= (1 + waveOffset * bandAvg)
+        }
+        
+        vertex.radius = vertex.originalRadius * radiusMultiplier
+        
+        // Update color with more complex transitions
+        const color = this.colors[i]
+        color.hue = (this.baseHue + time * 20 * this.colorSpeed + i * 30 + bandAvg * 60) % 360
+        color.saturation = 80 + bandAvg * 20
+        color.brightness = 70 + bandAvg * 30
+        color.alpha = 0.7 + bandAvg * 0.3
+      }
+      
+      // Occasionally regenerate vertices for more dynamic effect
+      // Higher chance with higher audio intensity
+      if (Math.random() < 0.001 + bandAvg * 0.01) {
+        this.generateVertices(5 + Math.floor(Math.random() * 5))
+      }
+      
+      // Update base hue with audio-reactive speed
+      this.baseHue = (this.baseHue + deltaTime * 10 * this.colorSpeed * (1 + bandAvg)) % 360
+    }
+    
+    draw(p, centerX, centerY) {
+      p.push()
+      p.translate(centerX, centerY)
+      p.rotate(this.angle + this.rotation)
+      
+      // Draw multiple layers for depth effect
+      for (let layer = 0; layer < this.layerDepth; layer++) {
+        const layerScale = 1 - (layer * 0.15)
+        
+        // Draw fragment with gradient fill
+        p.beginShape()
+        
+        // Add center point with glow
+        const centerColor = this.colors[0]
+        p.fill(centerColor.hue, centerColor.saturation, centerColor.brightness, centerColor.alpha * 0.7)
+        p.vertex(0, 0)
+        
+        // Add all vertices
+        for (let i = 0; i < this.vertices.length; i++) {
+          const vertex = this.vertices[i]
+          const x = Math.cos(vertex.angle) * vertex.radius * layerScale
+          const y = Math.sin(vertex.angle) * vertex.radius * layerScale
+          
+          // Set fill color for this vertex
+          const color = this.colors[i]
+          p.fill(color.hue, color.saturation, color.brightness, color.alpha * (1 - layer * 0.2))
+          
+          p.vertex(x, y)
+        }
+        
+        // Close shape
+        const firstVertex = this.vertices[0]
+        const x = Math.cos(firstVertex.angle) * firstVertex.radius * layerScale
+        const y = Math.sin(firstVertex.angle) * firstVertex.radius * layerScale
+        p.vertex(x, y)
+        
+        p.endShape(p.CLOSE)
+      }
+      
+      // Add glow effect
+      if (this.glowIntensity > 0.8) {
+        p.noFill()
+        
+        // Draw multiple glow layers
+        const glowLayers = 5
+        for (let g = 0; g < glowLayers; g++) {
+          const glowScale = 1 + (g * 0.05)
+          const glowAlpha = p.map(g, 0, glowLayers, 0.3, 0) * this.glowIntensity
+          
+          p.beginShape()
+          for (let i = 0; i < this.vertices.length; i++) {
+            const vertex = this.vertices[i]
+            const x = Math.cos(vertex.angle) * vertex.radius * glowScale
+            const y = Math.sin(vertex.angle) * vertex.radius * glowScale
+            
+            const color = this.colors[i]
+            p.stroke(color.hue, color.saturation, color.brightness, glowAlpha)
+            p.strokeWeight(3 + g)
+            
+            if (i === 0) {
+              p.vertex(x, y)
+            } else {
+              p.vertex(x, y)
+            }
+          }
+          
+          // Close shape
+          const firstVertex = this.vertices[0]
+          const x = Math.cos(firstVertex.angle) * firstVertex.radius * glowScale
+          const y = Math.sin(firstVertex.angle) * firstVertex.radius * glowScale
+          p.vertex(x, y)
+          
+          p.endShape(p.CLOSE)
+        }
+      }
+      
+      p.pop()
+    }
+  }
+  
+  // KaleidoscopeParticle class for enhanced particle effects
+  class KaleidoscopeParticle {
+    constructor(p, centerX, centerY) {
+      this.p = p
+      this.centerX = centerX
+      this.centerY = centerY
+      this.reset()
+    }
+    
+    reset() {
+      // Position particles in a circular pattern around the center
+      const angle = this.p.random(this.p.TWO_PI)
+      const distance = this.p.random(50, 300)
+      this.x = this.centerX + Math.cos(angle) * distance
+      this.y = this.centerY + Math.sin(angle) * distance
+      
+      // Random size, speed, and color
+      this.size = this.p.random(2, 8)
+      this.speedX = this.p.random(-1, 1)
+      this.speedY = this.p.random(-1, 1)
+      this.hue = this.p.random(360)
+      this.saturation = this.p.random(80, 100)
+      this.brightness = this.p.random(70, 100)
+      
+      // Particle lifecycle
+      this.life = this.p.random(0.5, 1)
+      this.maxLife = this.life
+      
+      // Glow effect properties
+      this.glowSize = this.p.random(1.5, 3)
+      this.glowIntensity = this.p.random(0.3, 0.7)
+      
+      // Audio reactivity
+      this.frequencyBand = Math.floor(this.p.random(4))
+      this.pulsePhase = this.p.random(this.p.TWO_PI)
+    }
+    
+    update(audioData, time, intensity) {
+      // Get frequency band data for targeted audio response
+      const freqBandSize = Math.floor(audioData.length / 4)
+      const bandStart = this.frequencyBand * freqBandSize
+      const bandEnd = bandStart + freqBandSize
+      
+      // Calculate average value for this frequency band
+      let bandSum = 0
+      for (let i = bandStart; i < bandEnd; i++) {
+        bandSum += audioData[i]
+      }
+      const bandAvg = bandSum / freqBandSize / 255.0
+      
+      // Update position with audio-reactive speed
+      const speedMultiplier = 1 + intensity * 0.5 + bandAvg
+      this.x += this.speedX * speedMultiplier
+      this.y += this.speedY * speedMultiplier
+      
+      // Add slight attraction to center
+      const dx = this.centerX - this.x
+      const dy = this.centerY - this.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      if (distance > 50) {
+        this.x += dx * 0.001 * intensity
+        this.y += dy * 0.001 * intensity
+      }
+      
+      // Update color with time and audio
+      this.hue = (this.hue + time * 10 + bandAvg * 20) % 360
+      this.brightness = 70 + bandAvg * 30
+      
+      // Apply pulsing effect based on audio and time
+      const pulse = Math.sin(time * 2 + this.pulsePhase) * 0.3 + 0.7
+      this.size = this.p.random(2, 8) * pulse * (1 + bandAvg)
+      
+      // Decrease life
+      this.life -= 0.01
+      
+      // Reset particle if it's dead or out of bounds
+      if (this.life <= 0 || 
+          this.x < 0 || this.x > this.p.width || 
+          this.y < 0 || this.y > this.p.height) {
+        this.reset()
+      }
+    }
+    
+    draw() {
+      // Calculate opacity based on life
+      const alpha = (this.life / this.maxLife) * 0.8
+      
+      // Draw particle with glow effect
+      this.p.noStroke()
+      
+      // Draw multiple glow layers
+      const glowLayers = 3
+      for (let i = 0; i < glowLayers; i++) {
+        const layerAlpha = alpha * this.glowIntensity * (1 - i / glowLayers)
+        const layerSize = this.size * this.glowSize * (1 + i)
+        
+        this.p.fill(this.hue, this.saturation, this.brightness, layerAlpha)
+        this.p.circle(this.x, this.y, layerSize)
+      }
+      
+      // Draw main particle
+      this.p.fill(this.hue, this.saturation, this.brightness, alpha)
+      this.p.circle(this.x, this.y, this.size)
+    }
+  }
+  
   // p5.js sketch
   const sketch = (p) => {
     let particles = []
     const particleCount = activeStyle.value === 'particles3d' ? 500 : 1000
+    
+    // Kaleidoscope fragments
+    let kaleidoscopeFragments = []
+    const fragmentCount = 24 // More fragments for more complex pattern
+    
+    // Kaleidoscope particles for enhanced effects
+    let kaleidoscopeParticles = []
+    const kaleidoscopeParticleCount = 150
+    
+    // Shader for post-processing effects
+    let shaderEffect
+    let shaderCanvas
+    let hasShader = false
+    
+    p.preload = () => {
+      // Try to load shader if supported
+      try {
+        shaderEffect = p.loadShader(
+          'https://cdn.jsdelivr.net/gh/aferriss/p5jsShaderExamples@main/4_image-effects/4-2_bloom/effect.vert',
+          'https://cdn.jsdelivr.net/gh/aferriss/p5jsShaderExamples@main/4_image-effects/4-2_bloom/effect.frag'
+        )
+        hasShader = true
+      } catch (e) {
+        console.warn('Shader not supported or failed to load:', e)
+        hasShader = false
+      }
+    }
     
     p.setup = () => {
       p.createCanvas(window.innerWidth, window.innerHeight)
       p.colorMode(p.HSB, 360, 100, 100, 1)
       p.background(0)
       
+      // Try to create shader graphics if supported
+      if (hasShader) {
+        try {
+          shaderCanvas = p.createGraphics(p.width, p.height, p.WEBGL)
+          shaderCanvas.noStroke()
+        } catch (e) {
+          console.warn('Failed to create shader graphics:', e)
+          hasShader = false
+        }
+      }
+      
       // Create particles based on active style
       createParticles()
+      
+      // Create kaleidoscope fragments
+      createKaleidoscopeFragments()
     }
     
     // Function to create particles based on active style
@@ -1219,15 +1624,27 @@ const initParticleVisualization = () => {
       }
     }
     
-    p.draw = () => {
-      if (!isActive.value) return
-      if (!layers.value.find(l => l.id === 'particles').active) {
-        // Skip drawing if layer is inactive
-        p.background(0, 0.1)
-        return
+    // Function to create kaleidoscope fragments
+    const createKaleidoscopeFragments = () => {
+      kaleidoscopeFragments = []
+      const maxRadius = Math.min(p.width, p.height) * 0.4
+      
+      for (let i = 0; i < fragmentCount; i++) {
+        kaleidoscopeFragments.push(new KaleidoscopeFragment(p, i, fragmentCount, maxRadius))
       }
       
-      p.background(0, 0.1)
+      // Initialize kaleidoscope particles
+      kaleidoscopeParticles = []
+      const centerX = p.width / 2
+      const centerY = p.height / 2
+      
+      for (let i = 0; i < kaleidoscopeParticleCount; i++) {
+        kaleidoscopeParticles.push(new KaleidoscopeParticle(p, centerX, centerY))
+      }
+    }
+    
+    p.draw = () => {
+      if (!isActive.value) return
       
       // Get audio data
       const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
@@ -1237,34 +1654,175 @@ const initParticleVisualization = () => {
       const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
       const intensity = p.map(average, 0, 255, 1, 3)
       
-      // Update and draw particles
-      if (activeStyle.value === 'particles3d') {
-        // Enhanced particles with frequency bin data
-        particles.forEach((particle, index) => {
-          // Get frequency bin for this particle
-          const binIndex = Math.floor((index / particles.length) * dataArray.length)
-          const frequencyValue = dataArray[binIndex]
-          
-          particle.update(intensity, frequencyValue)
-          particle.draw()
-        })
-      } else {
-        // Regular particles
-        particles.forEach(particle => {
-          particle.update(intensity)
-          particle.draw()
-        })
+      // Current time for animations
+      const time = p.millis() * 0.001
+      
+      // Clear background with trail effect
+      p.background(0, 0.1)
+      
+      // Draw based on active style and layers
+      if (activeStyle.value === 'kaleidoscope' && layers.value.find(l => l.id === 'frequency').active) {
+        // Draw enhanced kaleidoscope with P5.js
+        drawKaleidoscope(dataArray, time, intensity)
+      } else if (layers.value.find(l => l.id === 'particles').active) {
+        // Draw particles
+        if (activeStyle.value === 'particles3d') {
+          // Enhanced particles with frequency bin data
+          particles.forEach((particle, index) => {
+            // Get frequency bin for this particle
+            const binIndex = Math.floor((index / particles.length) * dataArray.length)
+            const frequencyValue = dataArray[binIndex]
+            
+            particle.update(intensity, frequencyValue)
+            particle.draw()
+          })
+        } else {
+          // Regular particles
+          particles.forEach(particle => {
+            particle.update(intensity)
+            particle.draw()
+          })
+        }
       }
     }
     
+    // Function to draw enhanced kaleidoscope with P5.js
+    const drawKaleidoscope = (audioData, time, intensity) => {
+      const centerX = p.width / 2
+      const centerY = p.height / 2
+      
+      // Apply post-processing with shader if supported
+      if (hasShader) {
+        try {
+          // Draw to shader canvas
+          shaderCanvas.clear()
+          
+          // Update and draw all fragments
+          kaleidoscopeFragments.forEach(fragment => {
+            fragment.update(audioData, time)
+            fragment.draw(shaderCanvas, 0, 0) // Center of WEBGL canvas is 0,0
+          })
+          
+          // Apply enhanced shader effects
+          shaderEffect.setUniform('tex0', shaderCanvas)
+          shaderEffect.setUniform('time', time)
+          shaderEffect.setUniform('intensity', intensity)
+          shaderEffect.setUniform('resolution', [p.width, p.height])
+          shaderEffect.setUniform('audioLevel', intensity / 3)
+          
+          // Draw shader result to main canvas
+          p.shader(shaderEffect)
+          p.rect(0, 0, p.width, p.height)
+        } catch (e) {
+          console.warn('Shader rendering failed:', e)
+          hasShader = false
+          
+          // Fallback to regular rendering
+          kaleidoscopeFragments.forEach(fragment => {
+            fragment.update(audioData, time)
+            fragment.draw(p, centerX, centerY)
+          })
+        }
+      } else {
+        // Regular rendering without shader
+        kaleidoscopeFragments.forEach(fragment => {
+          fragment.update(audioData, time)
+          fragment.draw(p, centerX, centerY)
+        })
+      }
+      
+      // Enhanced central glow effect
+      const glowSize = 100 + Math.sin(time * 2) * 20 + (intensity * 30)
+      const glowLayers = 15 // Increased from 10
+      
+      for (let i = 0; i < glowLayers; i++) {
+        const alpha = p.map(i, 0, glowLayers, 0.9, 0) // Increased from 0.8
+        const size = glowSize * (1 - i / glowLayers)
+        const hue = (time * 50) % 360
+        
+        p.noStroke()
+        p.fill(hue, 100, 100, alpha)
+        p.circle(centerX, centerY, size)
+      }
+      
+      // Draw enhanced radiating lines
+      const lineCount = 36 // Increased from 24
+      const maxLineLength = Math.min(p.width, p.height) * 0.5
+      
+      // Draw multiple sets of lines for more complex patterns
+      for (let set = 0; set < 3; set++) {
+        const setOffset = set * (p.TWO_PI / 3)
+        const setSpeed = 0.2 + set * 0.1
+        
+        for (let i = 0; i < lineCount; i++) {
+          const angle = (i / lineCount) * p.TWO_PI + time * setSpeed + setOffset
+          const audioIndex = Math.floor((i / lineCount) * audioData.length)
+          const audioValue = audioData[audioIndex] / 255.0
+          
+          // More dynamic line length calculation
+          const lineLength = maxLineLength * (0.3 + audioValue * 0.7) * (0.7 + set * 0.15)
+          
+          // Add wave pattern to lines
+          const waveFreq = 5 + set * 3
+          const waveAmp = 0.1 + audioValue * 0.1
+          
+          p.beginShape()
+          for (let j = 0; j < 10; j++) {
+            const segmentRatio = j / 9
+            const segmentLength = lineLength * segmentRatio
+            const waveOffset = Math.sin(segmentRatio * waveFreq + time * 3) * waveAmp * segmentLength
+            
+            const x = centerX + Math.cos(angle) * segmentLength + Math.cos(angle + p.HALF_PI) * waveOffset
+            const y = centerY + Math.sin(angle) * segmentLength + Math.sin(angle + p.HALF_PI) * waveOffset
+            
+            if (j === 0) {
+              p.vertex(centerX, centerY)
+            } else {
+              p.vertex(x, y)
+            }
+          }
+          
+          // Enhanced color with audio-reactive hue shift
+          const hue = (time * 50 + i * (360 / lineCount) + audioValue * 60) % 360
+          p.stroke(hue, 100, 100, 0.4 + audioValue * 0.3)
+          p.strokeWeight(1 + audioValue * 4)
+          p.noFill()
+          p.endShape()
+        }
+      }
+      
+      // Update and draw kaleidoscope particles
+      kaleidoscopeParticles.forEach(particle => {
+        particle.update(audioData, time, intensity)
+        particle.draw()
+      })
+      
+      // Occasionally spawn new particles based on audio intensity
+      if (Math.random() < 0.05 * intensity) {
+        const burstCount = Math.floor(5 + intensity * 5)
+        for (let i = 0; i < burstCount; i++) {
+          const index = Math.floor(Math.random() * kaleidoscopeParticles.length)
+          kaleidoscopeParticles[index].reset()
+        }
+      }
+    
     p.windowResized = () => {
       p.resizeCanvas(window.innerWidth, window.innerHeight)
+      
+      // Resize shader canvas if it exists
+      if (hasShader && shaderCanvas) {
+        shaderCanvas.resizeCanvas(p.width, p.height)
+      }
+      
+      // Recreate kaleidoscope fragments for new dimensions
+      createKaleidoscopeFragments()
     }
     
     // Watch for style changes and recreate particles
     watch(() => activeStyle.value, (newStyle) => {
-      console.log('Particle visualization style changed to:', newStyle)
+      console.log('Visualization style changed to:', newStyle)
       createParticles()
+      createKaleidoscopeFragments()
     })
   }
   
