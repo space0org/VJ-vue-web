@@ -2,8 +2,8 @@
 export const visualizationVersions = [
   {
     id: 'v1',
-    name: '初期バージョン',
-    description: '最初のサイケデリックフラクタル',
+    name: '収縮フラクタル',
+    description: '内側に収縮する無限フラクタル',
     config: {
       maxDepth: 8,
       branchCount: 36,
@@ -40,6 +40,20 @@ export const visualizationVersions = [
       angleVelocity: 0.008,
       colorOffset: 0.3,
       intensity: { min: 1.5, max: 4.0 }
+    }
+  },
+  {
+    id: 'v4',
+    name: '無限フラクタル',
+    description: '永遠に続く深い収縮パターン',
+    config: {
+      maxDepth: 10,
+      branchCount: 42,
+      branchThickness: { min: 2, max: 7 },
+      maxLength: { min: 120, max: 280 },
+      angleVelocity: 0.012,
+      colorOffset: 0.6,
+      intensity: { min: 2.2, max: 5.5 }
     }
   }
 ]

@@ -135,22 +135,27 @@ class FractalSystem {
       const branch = branches[i]
       
       if (branch.growing) {
-        branch.length += 1 * audioIntensity
+        // For inward contraction effect, we start with full length and decrease
+        if (branch.length === 0) {
+          branch.length = branch.maxLength; // Start at full length
+        } else {
+          branch.length -= 1 * audioIntensity; // Contract inward
+        }
         
-        // Create child branches when parent reaches certain length
-        if (branch.length > branch.maxLength * 0.5 && // Reduced from 0.6 to 0.5 to create branches earlier
-            branch.children.length < 3 && // Increased from 2 to 3 for more branching
+        // Create child branches when parent contracts to certain length
+        if (branch.length < branch.maxLength * 0.5 && // Create branches as we contract
+            branch.children.length < 3 && // Up to 3 child branches
             branch.depth < this.maxDepth && 
-            this.p.random() < 0.05 * audioIntensity) { // Increased from 0.03 to 0.05 for more frequent branching
+            this.p.random() < 0.05 * audioIntensity) {
           
           // Create multiple branches with varying angles for more complexity
-          const baseAngleOffset = this.p.random(0.2, 0.5) // Reduced range for tighter patterns
+          const baseAngleOffset = this.p.random(0.2, 0.5)
           
           // First branch - slightly right
           branch.children.push({
             angle: branch.angle + baseAngleOffset,
-            length: 0,
-            maxLength: branch.maxLength * 0.65, // Adjusted for better proportions
+            length: branch.maxLength * 0.65, // Start at full length
+            maxLength: branch.maxLength * 0.65,
             growing: true,
             children: [],
             depth: branch.depth + 1,
@@ -161,8 +166,8 @@ class FractalSystem {
           // Second branch - slightly left
           branch.children.push({
             angle: branch.angle - baseAngleOffset,
-            length: 0,
-            maxLength: branch.maxLength * 0.65, // Adjusted for better proportions
+            length: branch.maxLength * 0.65, // Start at full length
+            maxLength: branch.maxLength * 0.65,
             growing: true,
             children: [],
             depth: branch.depth + 1,
@@ -175,7 +180,7 @@ class FractalSystem {
             const randomAngle = branch.angle + this.p.random(-0.3, 0.3)
             branch.children.push({
               angle: randomAngle,
-              length: 0,
+              length: branch.maxLength * 0.5, // Start at full length
               maxLength: branch.maxLength * 0.5,
               growing: true,
               children: [],
@@ -186,9 +191,13 @@ class FractalSystem {
           }
         }
         
-        // Stop growing when max length is reached
-        if (branch.length >= branch.maxLength) {
-          branch.growing = false
+        // Stop growing when minimum length is reached
+        if (branch.length <= 0) {
+          branch.growing = false;
+          // Reset to create infinite fractal effect
+          branch.length = branch.maxLength;
+          branch.growing = true;
+          branch.children = []; // Clear children to restart the pattern
         }
       } else {
         // Slowly fade out completed branches
