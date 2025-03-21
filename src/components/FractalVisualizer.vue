@@ -81,6 +81,10 @@ class FractalSystem {
     this.colors = getThemeColors(props.theme)
     this.colorScale = chroma.scale(['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'])
     this.colorOffset = 0
+    // Store frequency-specific intensities for more detailed audio reactivity
+    this.bassIntensity = 0
+    this.midIntensity = 0
+    this.highIntensity = 0
     this.initBranches()
     
     // Debug message
@@ -108,14 +112,19 @@ class FractalSystem {
     console.log('Initialized', branchCount, 'branches for fractal visualization')
   }
 
-  update(audioIntensity) {
-    this.angle += this.angleVelocity * audioIntensity
+  update(audioIntensity, bassIntensity, midIntensity, highIntensity) {
+    // Store frequency-specific intensities for use in branch updates
+    this.bassIntensity = bassIntensity || 0
+    this.midIntensity = midIntensity || 0
+    this.highIntensity = highIntensity || 0
+    
+    this.angle += this.angleVelocity * (audioIntensity + bassIntensity * 0.5) // More responsive rotation
     
     // Update existing branches
     this.updateBranch(this.branches, audioIntensity)
     
     // Add new branches occasionally based on audio intensity
-    if (this.p.random() < 0.05 * audioIntensity && this.branches.length < 20) {
+    if (this.p.random() < (0.05 + this.bassIntensity * 0.05) * audioIntensity && this.branches.length < 20) {
       const angle = this.p.random(this.p.TWO_PI)
       this.branches.push({
         angle: angle,
@@ -139,14 +148,16 @@ class FractalSystem {
         if (branch.length === 0) {
           branch.length = branch.maxLength; // Start at full length
         } else {
-          branch.length -= 1 * audioIntensity; // Contract inward
+          // Use frequency-specific intensity for more dynamic contraction
+          const contractionSpeed = 1.0 * audioIntensity * (1.0 + (this.bassIntensity * 0.5));
+          branch.length -= contractionSpeed; // Contract inward with variable speed
         }
         
-        // Create child branches when parent contracts to certain length
-        if (branch.length < branch.maxLength * 0.5 && // Create branches as we contract
-            branch.children.length < 3 && // Up to 3 child branches
+        // Create child branches when parent contracts to certain length with more variation
+        if (branch.length < branch.maxLength * (0.5 - this.midIntensity * 0.2) && // Dynamic threshold based on mid frequencies
+            branch.children.length < Math.min(4, Math.floor(3 + this.highIntensity * 2)) && // Variable child count based on high frequencies
             branch.depth < this.maxDepth && 
-            this.p.random() < 0.05 * audioIntensity) {
+            this.p.random() < (0.05 + this.bassIntensity * 0.1) * audioIntensity) {
           
           // Create multiple branches with varying angles for more complexity
           const baseAngleOffset = this.p.random(0.2, 0.5)
@@ -255,6 +266,18 @@ class FractalSystem {
       
       this.p.fill((branch.hue + 30) % 360, 100, 100, 0.7)
       this.p.circle(midX, midY, branch.thickness * 3)
+      
+      // Add even more detail with smaller circles at quarter points for more intricate patterns
+      if (branch.length > 40) {
+        const quarterX = startX + Math.cos(branch.angle) * (branch.length * 0.25)
+        const quarterY = startY + Math.sin(branch.angle) * (branch.length * 0.25)
+        const threeQuarterX = startX + Math.cos(branch.angle) * (branch.length * 0.75)
+        const threeQuarterY = startY + Math.sin(branch.angle) * (branch.length * 0.75)
+        
+        this.p.fill((branch.hue + 60) % 360, 100, 100, 0.5)
+        this.p.circle(quarterX, quarterY, branch.thickness * 2)
+        this.p.circle(threeQuarterX, threeQuarterY, branch.thickness * 2)
+      }
     }
     
     // Draw children recursively
@@ -320,7 +343,7 @@ const sketch = (p) => {
       fractalSystem.colorOffset = (fractalSystem.colorOffset + bassAvg * 0.01) % 360;
       
       // Update and draw fractal system with enhanced audio responsiveness
-      fractalSystem.update(intensity)
+      fractalSystem.update(intensity, bassAvg, midAvg, highAvg)
       fractalSystem.draw()
       
       // Log every 60 frames

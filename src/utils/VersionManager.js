@@ -55,6 +55,35 @@ export const visualizationVersions = [
       colorOffset: 0.6,
       intensity: { min: 2.2, max: 5.5 }
     }
+  },
+  {
+    id: 'v5',
+    name: '超詳細フラクタル',
+    description: '非常に細かい複雑なパターン',
+    config: {
+      maxDepth: 14,
+      branchCount: 54,
+      branchThickness: { min: 1.5, max: 6 },
+      maxLength: { min: 100, max: 250 },
+      angleVelocity: 0.018,
+      colorOffset: 0.9,
+      intensity: { min: 2.8, max: 6.5 }
+    }
+  },
+  {
+    id: 'v6',
+    name: '音響反応フラクタル',
+    description: '音に敏感に反応する複雑なパターン',
+    config: {
+      maxDepth: 12,
+      branchCount: 48,
+      branchThickness: { min: 2, max: 7 },
+      maxLength: { min: 110, max: 270 },
+      angleVelocity: 0.015,
+      colorOffset: 0.7,
+      intensity: { min: 2.5, max: 6.0 },
+      frequencyResponse: { bass: 1.5, mid: 1.2, high: 1.0 }
+    }
   }
 ]
 
