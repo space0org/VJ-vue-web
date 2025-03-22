@@ -359,10 +359,8 @@ const initWaveformVisualization = () => {
     // Draw waveform
     canvasCtx.lineWidth = 3
     
-    // Use theme colors
-    const colors = getThemeColors(props.theme)
-    const hue = colors.hueStart
-    canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+    // Use cool cyan blue color for waveform
+    canvasCtx.strokeStyle = 'rgb(0, 191, 255)' // Changed to a cool cyan blue color
     
     canvasCtx.beginPath()
     

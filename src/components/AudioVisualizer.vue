@@ -178,7 +178,7 @@ const draw = () => {
   canvasCtx.fillRect(0, 0, width, height)
   
   canvasCtx.lineWidth = 2
-  canvasCtx.strokeStyle = 'rgb(255, 255, 255)'
+  canvasCtx.strokeStyle = 'rgb(0, 191, 255)' // Changed to a cool cyan blue color
   canvasCtx.beginPath()
   
   const sliceWidth = width / dataArray.length
