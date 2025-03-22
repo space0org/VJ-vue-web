@@ -114,6 +114,21 @@ const props = defineProps({
   isActive: {
     type: Boolean,
     default: false
+  },
+  version: {
+    type: Object,
+    default: () => ({
+      id: 'v1',
+      config: {
+        maxDepth: 8,
+        branchCount: 36,
+        branchThickness: { min: 3, max: 10 },
+        maxLength: { min: 150, max: 300 },
+        angleVelocity: 0.01,
+        colorOffset: 0.5,
+        intensity: { min: 2.0, max: 5.0 }
+      }
+    })
   }
 })
 
@@ -344,10 +359,8 @@ const initWaveformVisualization = () => {
     // Draw waveform
     canvasCtx.lineWidth = 3
     
-    // Use theme colors
-    const colors = getThemeColors(props.theme)
-    const hue = colors.hueStart
-    canvasCtx.strokeStyle = `hsl(${hue}, 100%, 70%)`
+    // Use cool cyan blue color for waveform
+    canvasCtx.strokeStyle = 'rgb(0, 191, 255)' // Changed to a cool cyan blue color
     
     canvasCtx.beginPath()
     
@@ -617,6 +630,20 @@ onMounted(() => {
       }, 50)
     }
   })
+  
+  // Listen for version change events
+  window.addEventListener('version-changed', (event) => {
+    if (event.detail && event.detail.version) {
+      console.log('VJModeOverlay: Received version change event:', event.detail.version.name)
+      
+      // Reinitialize fractal visualization with new version
+      if (isActive.value) {
+        setTimeout(() => {
+          initFractalVisualization()
+        }, 50)
+      }
+    }
+  })
 })
 
 // Initialize fractal visualization
@@ -657,17 +684,21 @@ const initFractalVisualization = () => {
   
   // Fractal class
   class FractalSystem {
-    constructor(p, audioData) {
+   constructor(p, audioData) {
       this.p = p
       this.audioData = audioData
       this.branches = []
-      this.maxDepth = 8 // Increased from 5 to 8 for more detailed fractals
+      this.maxDepth = props.version.config.maxDepth || 8
       this.angle = 0
-      this.angleVelocity = 0.01 // Increased velocity
+      this.angleVelocity = props.version.config.angleVelocity || 0.01
       this.centerX = p.width / 2
       this.centerY = p.height / 2
       this.colors = getThemeColors(props.theme)
-      this.colorOffset = 0
+      this.colorOffset = props.version.config.colorOffset || 0
+      // Store frequency-specific intensities for more detailed audio reactivity
+      this.bassIntensity = 0
+      this.midIntensity = 0
+      this.highIntensity = 0
       this.initBranches()
       
       // Debug message
@@ -675,24 +706,32 @@ const initFractalVisualization = () => {
     }
 
     initBranches() {
-      const branchCount = 36 // Increased from 20 to 36 for more detailed fractals
+      const branchCount = props.version.config.branchCount || 36
       for (let i = 0; i < branchCount; i++) {
         const angle = (i / branchCount) * this.p.TWO_PI
+        const thicknessConfig = props.version.config.branchThickness || { min: 3, max: 10 }
+        const lengthConfig = props.version.config.maxLength || { min: 150, max: 300 }
+        
         this.branches.push({
           angle: angle,
           length: 0,
-          maxLength: this.p.random(150, 300), // Adjusted for better proportions with more branches
+          maxLength: this.p.random(lengthConfig.min, lengthConfig.max),
           growing: true,
           children: [],
           depth: 0,
           hue: this.p.random(this.colors.hueStart, this.colors.hueEnd),
-          thickness: this.p.random(3, 10) // Reduced thickness for finer detail
+          thickness: this.p.random(thicknessConfig.min, thicknessConfig.max)
         })
       }
     }
 
-    update(audioIntensity) {
-      this.angle += this.angleVelocity * audioIntensity
+    update(audioIntensity, bassIntensity, midIntensity, highIntensity) {
+      // Store frequency-specific intensities for use in branch updates
+      this.bassIntensity = bassIntensity || 0
+      this.midIntensity = midIntensity || 0
+      this.highIntensity = highIntensity || 0
+      
+      this.angle += this.angleVelocity * (audioIntensity + bassIntensity * 0.5) // More responsive rotation
       this.colorOffset = (this.colorOffset + 0.5) % 360 // Cycle through colors
       
       // Update existing branches
@@ -724,13 +763,20 @@ const initFractalVisualization = () => {
         const branch = branches[i]
         
         if (branch.growing) {
-          branch.length += 1 * audioIntensity
+          // For inward contraction effect, we start with full length and decrease
+          if (branch.length === 0) {
+            branch.length = branch.maxLength; // Start at full length
+          } else {
+            // Use frequency-specific intensity for more dynamic contraction
+            const contractionSpeed = 1.0 * audioIntensity * (1.0 + (this.bassIntensity * 0.5));
+            branch.length -= contractionSpeed; // Contract inward with variable speed
+          }
           
-          // Create child branches when parent reaches certain length
-          if (branch.length > branch.maxLength * 0.5 && // Reduced from 0.6 to 0.5 to create branches earlier
-              branch.children.length < 3 && // Increased from 2 to 3 for more branching
+          // Create child branches when parent contracts to certain length
+          if (branch.length < branch.maxLength * (0.5 - this.midIntensity * 0.2) && // Dynamic threshold based on mid frequencies
+              branch.children.length < Math.min(4, Math.floor(3 + this.highIntensity * 2)) && // Variable child count based on high frequencies
               branch.depth < this.maxDepth && 
-              this.p.random() < 0.05 * audioIntensity) { // Increased from 0.03 to 0.05 for more frequent branching
+              this.p.random() < (0.05 + this.bassIntensity * 0.1) * audioIntensity) {
             
             // Create multiple branches with varying angles for more complexity
             const baseAngleOffset = this.p.random(0.2, 0.5) // Reduced range for tighter patterns
@@ -775,12 +821,15 @@ const initFractalVisualization = () => {
             }
           }
           
-          // Stop growing when max length is reached
-          if (branch.length >= branch.maxLength) {
-            branch.growing = false
+          // Reset branch when it contracts to near zero
+          if (branch.length <= 1) {
+            // Reset branch to start the cycle again for infinite fractal effect
+            branch.length = branch.maxLength;
+            branch.children = []; // Clear children for new generation
+            branch.hue = (branch.hue + 30 + this.colorOffset) % 360; // Shift hue for visual variety
           }
         } else {
-          // Slowly fade out completed branches
+          // For non-growing branches (should be rare with inward contraction)
           branch.thickness -= 0.01
           if (branch.thickness <= 0) {
             branches.splice(i, 1)
@@ -859,6 +908,23 @@ const initFractalVisualization = () => {
     }
   }
   
+  // Helper function to calculate average value in a frequency range
+  const calculateFrequencyBandAverage = (dataArray, startIndex, endIndex) => {
+    let sum = 0;
+    let count = 0;
+    
+    // Ensure indices are within bounds
+    startIndex = Math.max(0, Math.min(startIndex, dataArray.length - 1));
+    endIndex = Math.max(0, Math.min(endIndex, dataArray.length - 1));
+    
+    for (let i = startIndex; i <= endIndex; i++) {
+      sum += dataArray[i];
+      count++;
+    }
+    
+    return count > 0 ? sum / (count * 255) : 0; // Normalize to 0-1 range
+  };
+  
   // p5.js sketch
   const sketch = (p) => {
     let canvas = null
@@ -891,12 +957,18 @@ const initFractalVisualization = () => {
         const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
         props.audioAnalyser.getByteFrequencyData(dataArray)
         
-       // Calculate average intensity with more dynamic range for mock audio
+        // Calculate average intensity with more dynamic range for mock audio
         const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
-        const intensity = p.map(average, 0, 255, 2.0, 5.0) // Further increased intensity range for more dramatic effect
+        const intensityConfig = props.version.config.intensity || { min: 2.0, max: 5.0 }
+        const intensity = p.map(average, 0, 255, intensityConfig.min, intensityConfig.max)
         
-        // Update and draw fractal system
-        fractalSystem.update(intensity)
+        // Calculate frequency band averages for more detailed audio reactivity
+        const bassAvg = calculateFrequencyBandAverage(dataArray, 0, 10);
+        const midAvg = calculateFrequencyBandAverage(dataArray, 10, 100);
+        const highAvg = calculateFrequencyBandAverage(dataArray, 100, 255);
+        
+        // Update and draw fractal system with enhanced audio responsiveness
+        fractalSystem.update(intensity, bassAvg, midAvg, highAvg)
         fractalSystem.draw()
         
         // Debug visualization
