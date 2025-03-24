@@ -37,8 +37,8 @@ const createP5Instance = () => {
       canvas.parent(container)
       p.colorMode(p.HSB, 360, 100, 100, 100)
       p.textAlign(p.CENTER, p.CENTER)
-      p.textSize(16)
-      p.strokeWeight(2)
+      p.textSize(32) // Increased text size from 16 to 32
+      p.strokeWeight(3) // Increased stroke weight from 2 to 3
       p.noFill()
     }
 
@@ -54,7 +54,7 @@ const createP5Instance = () => {
       // Draw the visualization
       const centerX = p.width / 2
       const centerY = p.height / 2
-      const spacing = 150 // Spacing between circles
+      const spacing = 250 // Increased spacing between circles from 150 to 250
       
       // Draw bass visualization (red)
       drawVariableCircle(centerX - spacing, centerY, bassIntensity.value, 0, "低音")
@@ -69,8 +69,8 @@ const createP5Instance = () => {
     // Draw a variable circle with text
     const drawVariableCircle = (x, y, intensity, hue, label) => {
       // Map intensity to circle size
-      const maxRadius = 100
-      const minRadius = 20
+      const maxRadius = 200 // Increased max radius from 100 to 200
+      const minRadius = 40  // Increased min radius from 20 to 40
       const numCircles = 5
       
       // Draw concentric circles
@@ -83,8 +83,8 @@ const createP5Instance = () => {
       // Draw variable value
       p.fill(hue, 100, 100, 100)
       p.noStroke()
-      p.text(label, x, y - 10)
-      p.text(intensity.toFixed(2), x, y + 10)
+      p.text(label, x, y - 20) // Increased vertical spacing from 10 to 20
+      p.text(intensity.toFixed(2), x, y + 20) // Increased vertical spacing from 10 to 20
       p.noFill()
     }
   }, containerRef.value)
