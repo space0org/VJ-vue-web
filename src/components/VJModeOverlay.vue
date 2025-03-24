@@ -35,6 +35,13 @@
         style="mix-blend-mode: lighten; opacity: 1; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
       ></div>
       
+      <!-- Audio Variables Layer - displays real-time audio variables -->
+      <AudioVariablesLayer
+        v-if="audioVariablesActive && props.audioAnalyser"
+        :audioAnalyser="props.audioAnalyser"
+        :isActive="isActive"
+      />
+      
       <!-- Controls overlay - only visible when mouse moves -->
       <div 
         v-if="showControls"
@@ -90,6 +97,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import p5 from 'p5'
 import FractalVisualizer from './FractalVisualizer.vue'
+import AudioVariablesLayer from './AudioVariablesLayer.vue'
 
 const props = defineProps({
   audioAnalyser: {
@@ -150,8 +158,12 @@ const layers = ref([
   { id: 'waveform', name: '波形', active: true },
   { id: 'particles', name: 'パーティクル', active: true },
   { id: 'frequency', name: '周波数', active: true },
-  { id: 'fractal', name: 'フラクタル', active: true }
+  { id: 'fractal', name: 'フラクタル', active: true },
+  { id: 'audioVariables', name: '音声変数', active: true }
 ])
+
+// Audio variables layer state
+const audioVariablesActive = ref(true)
 
 // Debug log layers
 console.log('VJModeOverlay: Layers configuration:', layers.value)
@@ -278,6 +290,11 @@ const toggleLayer = (layerId) => {
   const layer = layers.value.find(l => l.id === layerId)
   if (layer) {
     layer.active = !layer.active
+    
+    // Update audio variables layer state
+    if (layerId === 'audioVariables') {
+      audioVariablesActive.value = layer.active
+    }
   }
 }
 
