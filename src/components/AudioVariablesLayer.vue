@@ -54,38 +54,31 @@ const createP5Instance = () => {
       // Draw the visualization
       const centerX = p.width / 2
       const centerY = p.height / 2
-      const spacing = 250 // Increased spacing between circles from 150 to 250
       
+      // Draw all circles at the center with different hues
       // Draw bass visualization (red)
-      drawVariableCircle(centerX - spacing, centerY, bassIntensity.value, 0, "低音")
+      drawVariableCircle(centerX, centerY, bassIntensity.value, 0)
       
       // Draw mid visualization (yellow)
-      drawVariableCircle(centerX, centerY, midIntensity.value, 60, "中音")
+      drawVariableCircle(centerX, centerY, midIntensity.value, 60)
       
       // Draw high visualization (blue)
-      drawVariableCircle(centerX + spacing, centerY, highIntensity.value, 240, "高音")
+      drawVariableCircle(centerX, centerY, highIntensity.value, 240)
     }
     
-    // Draw a variable circle with text
-    const drawVariableCircle = (x, y, intensity, hue, label) => {
+    // Draw a variable circle without text
+    const drawVariableCircle = (x, y, intensity, hue) => {
       // Map intensity to circle size
       const maxRadius = 200 // Increased max radius from 100 to 200
       const minRadius = 40  // Increased min radius from 20 to 40
       const numCircles = 5
       
-      // Draw concentric circles
+      // Draw concentric circles with reduced opacity (33%)
       for (let i = 1; i <= numCircles; i++) {
         const radius = p.map(i, 1, numCircles, minRadius, maxRadius) * intensity * 2
-        p.stroke(hue, 100, 100, 70)
+        p.stroke(hue, 100, 100, 33) // Reduced opacity to 33%
         p.circle(x, y, radius)
       }
-      
-      // Draw variable value
-      p.fill(hue, 100, 100, 100)
-      p.noStroke()
-      p.text(label, x, y - 20) // Increased vertical spacing from 10 to 20
-      p.text(intensity.toFixed(2), x, y + 20) // Increased vertical spacing from 10 to 20
-      p.noFill()
     }
   }, containerRef.value)
 }
@@ -193,6 +186,6 @@ watch(() => props.isActive, (newValue) => {
 }
 
 .audio-variables-layer.active {
-  opacity: 0.8;
+  opacity: 1;
 }
 </style>
