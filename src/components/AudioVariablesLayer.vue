@@ -68,9 +68,9 @@ const createP5Instance = () => {
     
     // Draw a variable circle without text
     const drawVariableCircle = (x, y, intensity, hue) => {
-      // Map intensity to circle size
-      const maxRadius = 200 // Increased max radius from 100 to 200
-      const minRadius = 40  // Increased min radius from 20 to 40
+      // Map intensity to circle size - tripled as requested
+      const maxRadius = 600 // Increased max radius from 200 to 600 (3x)
+      const minRadius = 120 // Increased min radius from 40 to 120 (3x)
       const numCircles = 5
       
       // Draw concentric circles with reduced opacity (33%)
