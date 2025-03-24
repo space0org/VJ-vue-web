@@ -7,6 +7,26 @@
         isActive ? 'z-[9999] opacity-100 vj-active' : 'z-[-1] opacity-0 pointer-events-none'
       ]"
     >
+      <!-- Left side layer controls -->
+      <div 
+        v-if="showControls"
+        class="absolute left-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 bg-black/50 p-2 rounded-lg transition-opacity duration-300"
+        :class="controlsVisible ? 'opacity-100' : 'opacity-0'"
+      >
+        <button 
+          v-for="(layer, index) in layers" 
+          :key="layer.id"
+          @click="toggleLayer(layer.id)"
+          :class="[
+            'px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center justify-between w-24',
+            layer.active ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+          ]"
+        >
+          <span>L{{ index + 1 }}</span>
+          <span>{{ layer.active ? '非表示' : '表示' }}</span>
+        </button>
+      </div>
+      
       <!-- Overlay container for all visualizations -->
       <div class="absolute inset-0 opacity-80">
         <!-- Waveform visualization layer -->
@@ -49,20 +69,6 @@
         :class="controlsVisible ? 'opacity-100' : 'opacity-0'"
       >
         <div class="flex justify-between items-center">
-          <div class="flex gap-2">
-            <button 
-              v-for="layer in layers" 
-              :key="layer.id"
-              @click="toggleLayer(layer.id)"
-              :class="[
-                'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
-                layer.active ? 'bg-blue-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              ]"
-            >
-              {{ layer.name }}
-            </button>
-          </div>
-          
           <div class="flex gap-2">
             <button 
               @click="$emit('close')"
