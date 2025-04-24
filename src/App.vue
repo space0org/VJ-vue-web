@@ -1,8 +1,9 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, nextTick, onMounted, computed } from 'vue'
 import AudioVisualizer from './components/AudioVisualizer.vue'
 import VJModeOverlay from './components/VJModeOverlay.vue'
 import FractalVisualizer from './components/FractalVisualizer.vue'
+import PatternBVisualizer from './components/PatternBVisualizer.vue'
 import VersionSelector from './components/VersionSelector.vue'
 import { getDefaultVersion } from './utils/VersionManager'
 
@@ -81,10 +82,16 @@ const handleVersionSelected = (version) => {
         @analyser-ready="setAudioAnalyser"
       />
       
-      <!-- Direct fractal visualization -->
+      <!-- Direct visualization based on version type -->
       <div v-if="audioAnalyser" class="w-full h-64 rounded-lg mt-4 relative overflow-hidden">
         <FractalVisualizer 
-          v-if="audioAnalyser" 
+          v-if="currentVersion.type === 'fractal'" 
+          :audioAnalyser="audioAnalyser" 
+          theme="default"
+          :version="currentVersion"
+        />
+        <PatternBVisualizer 
+          v-if="currentVersion.type === 'pattern-b'" 
           :audioAnalyser="audioAnalyser" 
           theme="default"
           :version="currentVersion"

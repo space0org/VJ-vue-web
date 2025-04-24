@@ -32,7 +32,16 @@
       
       <!-- Fractal visualization layer - moved to top for visibility -->
       <div 
+        v-if="currentVersionType === 'fractal'"
         ref="fractalContainer" 
+        class="absolute inset-0 w-full h-full z-50 pointer-events-none"
+        style="mix-blend-mode: lighten; opacity: 1; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
+      ></div>
+      
+      <!-- Pattern B visualization layer -->
+      <div 
+        v-if="currentVersionType === 'pattern-b'"
+        ref="patternBContainer" 
         class="absolute inset-0 w-full h-full z-50 pointer-events-none"
         style="mix-blend-mode: lighten; opacity: 1; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
       ></div>
@@ -82,9 +91,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import p5 from 'p5'
 import FractalVisualizer from './FractalVisualizer.vue'
+import PatternBVisualizer from './PatternBVisualizer.vue'
 import AudioVariablesLayer from './AudioVariablesLayer.vue'
 
 const props = defineProps({
@@ -115,6 +125,7 @@ const props = defineProps({
     type: Object,
     default: () => ({
       id: 'v1',
+      type: 'fractal',
       config: {
         maxDepth: 8,
         branchCount: 36,
@@ -128,6 +139,11 @@ const props = defineProps({
   }
 })
 
+// Compute current version type
+const currentVersionType = computed(() => {
+  return props.version?.type || 'fractal'
+})
+
 const emit = defineEmits(['close'])
 
 const vjContainer = ref(null)
@@ -135,6 +151,7 @@ const waveformCanvas = ref(null)
 const frequencyCanvas = ref(null)
 const particleContainer = ref(null)
 const fractalContainer = ref(null)
+const patternBContainer = ref(null)
 // Use local isActive state that syncs with props
 const isActive = ref(props.isActive)
 const showControls = ref(true)
@@ -227,7 +244,13 @@ const activate = () => {
     initWaveformVisualization()
     initFrequencyVisualization()
     initParticleVisualization()
-    initFractalVisualization()
+    
+    // Initialize the appropriate visualizer based on version type
+    if (currentVersionType.value === 'fractal') {
+      initFractalVisualization()
+    } else if (currentVersionType.value === 'pattern-b') {
+      initPatternBVisualization()
+    }
     
     // Show controls briefly, then hide
     controlsVisible.value = true
@@ -599,7 +622,13 @@ watch(() => isActive.value, (newValue) => {
       initWaveformVisualization()
       initFrequencyVisualization()
       initParticleVisualization()
-      initFractalVisualization()
+      
+      // Initialize the appropriate visualizer based on version type
+      if (currentVersionType.value === 'fractal') {
+        initFractalVisualization()
+      } else if (currentVersionType.value === 'pattern-b') {
+        initPatternBVisualization()
+      }
     }, 50)
   }
 })
@@ -614,7 +643,13 @@ watch(() => props.audioAnalyser, (newValue) => {
       initWaveformVisualization()
       initFrequencyVisualization()
       initParticleVisualization()
-      initFractalVisualization()
+      
+      // Initialize the appropriate visualizer based on version type
+      if (currentVersionType.value === 'fractal') {
+        initFractalVisualization()
+      } else if (currentVersionType.value === 'pattern-b') {
+        initPatternBVisualization()
+      }
     }, 50)
   }
 })
@@ -650,6 +685,212 @@ onMounted(() => {
     }
   })
 })
+
+// Initialize Pattern B visualization
+const initPatternBVisualization = () => {
+  if (!patternBContainer.value) return
+  console.log('VJModeOverlay: Initializing Pattern B visualization with analyser:', props.audioAnalyser)
+  if (!props.audioAnalyser) {
+    console.warn('VJModeOverlay: No audio analyser available for Pattern B visualization')
+    return
+  }
+  
+  // Clear previous content
+  while (patternBContainer.value.firstChild) {
+    patternBContainer.value.removeChild(patternBContainer.value.firstChild)
+  }
+  
+  // Create a new p5 instance for Pattern B visualization
+  const patternBSketch = (p) => {
+    // Pattern B system class
+    class PatternBSystem {
+      constructor(p, config) {
+        this.p = p
+        this.particles = []
+        this.centerX = p.width / 2
+        this.centerY = p.height / 2
+        this.config = config || {}
+        this.particleCount = this.config.particleCount || 200
+        this.colorShift = this.config.colorOffset || 0.5
+        this.blendMode = this.config.blendMode || 'screen'
+        
+        // Initialize particles
+        this.initParticles()
+        
+        console.log('PatternBSystem initialized with config:', this.config)
+      }
+      
+      initParticles() {
+        this.particles = []
+        for (let i = 0; i < this.particleCount; i++) {
+          this.particles.push(this.createParticle())
+        }
+      }
+      
+      createParticle() {
+        const sizeConfig = this.config.particleSize || { min: 2, max: 8 }
+        const speedConfig = this.config.speed || { min: 0.5, max: 2.0 }
+        
+        return {
+          x: this.p.random(this.p.width),
+          y: this.p.random(this.p.height),
+          size: this.p.random(sizeConfig.min, sizeConfig.max),
+          speedX: this.p.random(-speedConfig.min, speedConfig.max),
+          speedY: this.p.random(-speedConfig.min, speedConfig.max),
+          hue: this.p.random(0, 360),
+          opacity: this.config.opacity || 0.8,
+          life: this.p.random(50, 200),
+          maxLife: this.p.random(50, 200)
+        }
+      }
+      
+      update(audioIntensity, bassIntensity, midIntensity, highIntensity) {
+        // Apply frequency response modifiers
+        const freqResponse = this.config.frequencyResponse || { bass: 1.0, mid: 1.0, high: 1.0 }
+        const bassEffect = bassIntensity * (freqResponse.bass || 1.2)
+        const midEffect = midIntensity * (freqResponse.mid || 1.0)
+        const highEffect = highIntensity * (freqResponse.high || 0.8)
+        
+        // Update particles based on audio data
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i]
+          
+          // Apply audio-reactive movement
+          p.x += p.speedX * (1 + bassEffect * 2)
+          p.y += p.speedY * (1 + midEffect * 2)
+          
+          // Size pulsation based on mid frequencies
+          p.displaySize = p.size * (1 + midEffect * 3)
+          
+          // Color shifting based on high frequencies
+          p.hue = (p.hue + this.colorShift * highEffect) % 360
+          
+          // Decrease life
+          p.life -= 1
+          
+          // Opacity based on life and high frequencies
+          p.opacity = (p.life / p.maxLife) * (this.config.opacity || 0.8) * (1 + highEffect * 0.5)
+          
+          // Replace dead particles
+          if (p.life <= 0 || 
+              p.x < -p.size || p.x > this.p.width + p.size || 
+              p.y < -p.size || p.y > this.p.height + p.size) {
+            this.particles[i] = this.createParticle()
+          }
+        }
+        
+        // Add new particles based on bass intensity
+        if (this.p.random() < bassEffect * 0.3 && this.particles.length < this.particleCount * 1.5) {
+          this.particles.push(this.createParticle())
+        }
+      }
+      
+      draw() {
+        // Set blend mode for interesting visual effects
+        if (this.blendMode === 'screen') {
+          this.p.blendMode(this.p.SCREEN)
+        } else if (this.blendMode === 'lighten') {
+          this.p.blendMode(this.p.LIGHTEN)
+        } else if (this.blendMode === 'add') {
+          this.p.blendMode(this.p.ADD)
+        } else {
+          this.p.blendMode(this.p.BLEND)
+        }
+        
+        // Draw all particles
+        for (const particle of this.particles) {
+          this.p.noStroke()
+          
+          // Draw main particle
+          this.p.fill(particle.hue, 100, 100, particle.opacity)
+          this.p.circle(particle.x, particle.y, particle.displaySize)
+          
+          // Draw glow effect
+          this.p.fill(particle.hue, 100, 100, particle.opacity * 0.5)
+          this.p.circle(particle.x, particle.y, particle.displaySize * 2)
+          
+          this.p.fill(particle.hue, 100, 100, particle.opacity * 0.2)
+          this.p.circle(particle.x, particle.y, particle.displaySize * 4)
+        }
+        
+        // Reset blend mode
+        this.p.blendMode(this.p.BLEND)
+      }
+      
+      // Handle window resize
+      resize(width, height) {
+        this.centerX = width / 2
+        this.centerY = height / 2
+      }
+    }
+    
+    let patternBSystem = null
+    
+    p.setup = () => {
+      p.createCanvas(window.innerWidth, window.innerHeight)
+      p.colorMode(p.HSB, 360, 100, 100, 1)
+      p.background(0)
+      
+      // Initialize Pattern B system with current version config
+      patternBSystem = new PatternBSystem(p, props.version.config)
+    }
+    
+    p.draw = () => {
+      if (!isActive.value || !props.audioAnalyser) return
+      
+      p.clear()
+      p.background(0, 0.1) // Slight trail effect
+      
+      // Get audio data
+      const dataArray = new Uint8Array(props.audioAnalyser.frequencyBinCount)
+      props.audioAnalyser.getByteFrequencyData(dataArray)
+      
+      // Calculate average intensity
+      const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length
+      const intensity = p.map(average, 0, 255, 1, 3)
+      
+      // Calculate frequency bands
+      const bassEnd = Math.floor(dataArray.length * 0.1)
+      const midEnd = Math.floor(dataArray.length * 0.5)
+      
+      let bassSum = 0, midSum = 0, highSum = 0
+      
+      for (let i = 0; i < bassEnd; i++) {
+        bassSum += dataArray[i]
+      }
+      
+      for (let i = bassEnd; i < midEnd; i++) {
+        midSum += dataArray[i]
+      }
+      
+      for (let i = midEnd; i < dataArray.length; i++) {
+        highSum += dataArray[i]
+      }
+      
+      const bassIntensity = bassSum / (bassEnd * 255)
+      const midIntensity = midSum / ((midEnd - bassEnd) * 255)
+      const highIntensity = highSum / ((dataArray.length - midEnd) * 255)
+      
+      // Update and draw Pattern B system
+      patternBSystem.update(intensity, bassIntensity, midIntensity, highIntensity)
+      patternBSystem.draw()
+    }
+    
+    p.windowResized = () => {
+      p.resizeCanvas(window.innerWidth, window.innerHeight)
+      
+      // Update center position
+      if (patternBSystem) {
+        patternBSystem.resize(window.innerWidth, window.innerHeight)
+      }
+    }
+  }
+  
+  // Create p5 instance
+  new p5(patternBSketch, patternBContainer.value)
+  
+  console.log('VJModeOverlay: Pattern B visualization initialized')
+}
 
 // Initialize fractal visualization
 const initFractalVisualization = () => {
