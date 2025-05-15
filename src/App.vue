@@ -116,6 +116,11 @@ const handleVersionSelected = (version) => {
           {{ isVJModeActive ? 'VJモード実行中' : 'VJモードを起動' }}
         </button>
       </div>
+      
+      <!-- Debug info -->
+      <div class="mt-2 text-xs text-white text-center">
+        バージョン: {{ currentVersion ? currentVersion.name : '読み込み中' }}
+      </div>
     </div>
     
     <!-- VJ Mode Overlay - Always rendered -->
@@ -133,7 +138,7 @@ const handleVersionSelected = (version) => {
     <VersionSelector
       :isVJModeActive="isVJModeActive"
       :currentVersionId="currentVersion.id"
-      :showVersionButton="!isVJModeActive"
+      :showVersionButton="true"
       @version-selected="handleVersionSelected"
     />
   </div>
